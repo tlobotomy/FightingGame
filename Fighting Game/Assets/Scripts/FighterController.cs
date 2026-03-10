@@ -1,6 +1,7 @@
 using System.Runtime.ExceptionServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using static UnityEditor.PlayerSettings;
 
 public class FighterController : MonoBehaviour {
     //PARAMETERS
@@ -83,6 +84,7 @@ public class FighterController : MonoBehaviour {
     //Data gathering functions
     public void OnMove(InputValue value) { //Anytime player moves we store the x,y coordinates
         moveInput = value.Get<Vector2>();
+
     }
 
     float GetForwardInput() { //means that +1 is forward and -1 is back no matter what side youre on
@@ -190,7 +192,7 @@ public class FighterController : MonoBehaviour {
 
     //Game Functions
     void Start() {
-        groundY = -20;
+        groundY = -34;
     }
     void FixedUpdate() {
         UpdateFacing();
@@ -198,22 +200,9 @@ public class FighterController : MonoBehaviour {
         HandleState();
         
     }
-    //INPUTS
-
-    /*public InputActionAsset InputActions; //Stores input actions
-
-
-    private void OnEnable() { //Enables player input map
-        InputActions.FindActionMap("Player").Enable();
+    void LateUpdate() { //Clamps x movement (boundaries)
+        Vector3 pos = transform.position;
+        pos.x = Mathf.Clamp(pos.x, -180f, 180f); // stage width
+        transform.position = pos;
     }
-
-    private void OnDisable() { //Disables player input map
-        InputActions.FindActionMap("Player").Disable();
-    }
-
-
-    private void Awake() {
-        m_moveAction = InputSystem.actions.FindAction("Move");
-
-    }*/
 }

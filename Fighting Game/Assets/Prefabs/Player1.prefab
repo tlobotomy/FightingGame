@@ -14,10 +14,10 @@ GameObject:
   - component: {fileID: 2680171353293464517}
   - component: {fileID: 8560569529028422161}
   - component: {fileID: 274079916415385754}
+  - component: {fileID: 5202306653343502427}
   - component: {fileID: 1488992214618501120}
   - component: {fileID: 6330400180513723869}
   - component: {fileID: 5102601631770498444}
-  - component: {fileID: 5202306653343502427}
   m_Layer: 0
   m_Name: Player1
   m_TagString: Player1
@@ -89,12 +89,12 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 2115909910440875042, guid: 5995dfb402ec68e4f9e3fbc8ee5e48be, type: 3}
+  m_Sprite: {fileID: 7305291800288798131, guid: f20f0b6747cc63542b7320e9fbc0b4c5, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 1919, y: 4050}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -133,17 +133,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 1.9396896, y: -11.67584}
+  m_Offset: {x: 1.9396896, y: -9.493046}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
     oldSize: {x: 78, y: 103}
-    newSize: {x: 1, y: 1}
+    newSize: {x: 1919, y: 4050}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 48.802567, y: 79.648315}
+  m_Size: {x: 48.802567, y: 77.82932}
   m_EdgeRadius: 0
 --- !u!50 &2680171353293464517
 Rigidbody2D:
@@ -216,42 +216,6 @@ MonoBehaviour:
   airSpeed: 10
   opponent: {fileID: 0}
   currentState: 0
---- !u!114 &1488992214618501120
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 18122c3731da4c34199216a68f58dd2c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HitboxManager
---- !u!114 &6330400180513723869
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dcd09437bfdc20b4788f1edd27aef817, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HurtboxManager
---- !u!114 &5102601631770498444
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03f9d6ded563b7b47ab9000cd085d2ea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InputBuffer
 --- !u!114 &5202306653343502427
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -358,3 +322,39 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
+--- !u!114 &1488992214618501120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9162551287176415162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18122c3731da4c34199216a68f58dd2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HitboxManager
+--- !u!114 &6330400180513723869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9162551287176415162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dcd09437bfdc20b4788f1edd27aef817, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HurtboxManager
+--- !u!114 &5102601631770498444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9162551287176415162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03f9d6ded563b7b47ab9000cd085d2ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InputBuffer
