@@ -179,7 +179,7 @@ Animator:
   m_GameObject: {fileID: 250968438874482646}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 61d92e01fd6777a45855b789ff2263ba, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -205,12 +205,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FighterController
   health: 100
   supermeter: 0
-  walkSpeed: 5
-  backWalkSpeed: 2
-  jumpForce: 10
-  gravity: -30
-  fallMultiplier: 3
-  airSpeed: 10
+  walkSpeed: 120
+  backWalkSpeed: 100
+  jumpForce: 230
+  gravity: -200
+  fallMultiplier: 5.6
+  airSpeed: 110
   opponent: {fileID: 0}
   currentState: 0
 --- !u!114 &7756200984290278522

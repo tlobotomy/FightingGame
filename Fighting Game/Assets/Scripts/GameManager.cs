@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 
 public class GameManager : MonoBehaviour
 {
     public PlayerInput player1;
     public PlayerInput player2;
+   // public GameObject PauseMenu;
     public JoinUI joinUI;
+    //private bool isPaused = false;
 
 
     private bool p1Joined = false;
@@ -17,6 +20,10 @@ public class GameManager : MonoBehaviour
         player2.DeactivateInput();
     }
 
+    /*private void Awake() {
+        PauseMenu.SetActive(false);
+    }*/
+
     private void Update() {
         if (!p1Joined) {
             TryJoinPlayer1();
@@ -24,8 +31,21 @@ public class GameManager : MonoBehaviour
         else if (!p2Joined) {
             TryJoinPlayer2();
         }
-    }
+        CheckPause();
 
+    }
+    public void QuitGame() {
+        Application.Quit();
+    }
+    void CheckPause() {
+        foreach (var gamepad in Gamepad.all) {
+            if (gamepad.selectButton.wasPressedThisFrame) {
+                //isPaused = true;
+                //PauseMenu.SetActive(true);
+                QuitGame();
+            }
+        }
+    }
     void TryJoinPlayer1() {
         if (Keyboard.current.enterKey.wasPressedThisFrame) {
             AssignPlayer(player1, Keyboard.current);

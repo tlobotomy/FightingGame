@@ -7,6 +7,7 @@ public class JoinUI : MonoBehaviour
     public TextMeshProUGUI p1Text;
     public TextMeshProUGUI p2Text;
 
+
     public GameObject joinPanel1;
     public GameObject joinPanel2;
     private bool p1Joined;

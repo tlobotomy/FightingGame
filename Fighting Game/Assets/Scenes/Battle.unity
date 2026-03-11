@@ -297,10 +297,10 @@ Camera:
   m_LensShift: {x: 0, y: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
-    x: 0
-    y: 0.0015673981
-    width: 1
-    height: 0.99568963
+    x: 0.20240138
+    y: 0
+    width: 0.5954423
+    height: 1
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 34
@@ -762,11 +762,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: gravity
-      value: -500
+      value: -350
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: airSpeed
-      value: 140
+      value: 166
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: opponent
@@ -774,24 +774,32 @@ PrefabInstance:
       objectReference: {fileID: 887902317}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: jumpForce
-      value: 180
+      value: 170
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: walkSpeed
-      value: 100
+      value: 120
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: backWalkSpeed
-      value: 95
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 3394338083027708497, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: fallMultiplier
-      value: 4.5
+      value: 6.2
       objectReference: {fileID: 0}
     - target: {fileID: 6251365660003016726, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: m_FlipX
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6821546421671373189, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6821546421671373189, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 61d92e01fd6777a45855b789ff2263ba, type: 2}
     - target: {fileID: 7756200984290278522, guid: 5c6750af01d0b054989a16e0f9038c49, type: 3}
       propertyPath: m_Camera
       value: 
@@ -1058,9 +1066,21 @@ PrefabInstance:
       value: 4.7
       objectReference: {fileID: 0}
     - target: {fileID: 838277518977220697, guid: d0ebdbd84790e3342a9d9a2bdebaf633, type: 3}
+      propertyPath: gravity
+      value: -360
+      objectReference: {fileID: 0}
+    - target: {fileID: 838277518977220697, guid: d0ebdbd84790e3342a9d9a2bdebaf633, type: 3}
+      propertyPath: airSpeed
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 838277518977220697, guid: d0ebdbd84790e3342a9d9a2bdebaf633, type: 3}
       propertyPath: opponent
       value: 
       objectReference: {fileID: 1086206100}
+    - target: {fileID: 838277518977220697, guid: d0ebdbd84790e3342a9d9a2bdebaf633, type: 3}
+      propertyPath: jumpForce
+      value: 130
+      objectReference: {fileID: 0}
     - target: {fileID: 2680171353293464517, guid: d0ebdbd84790e3342a9d9a2bdebaf633, type: 3}
       propertyPath: m_Interpolate
       value: 0

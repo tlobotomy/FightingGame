@@ -18,6 +18,8 @@ public class FighterController : MonoBehaviour {
     float jumpDirection;
     float groundY;
     Vector2 moveInput;
+    Animator animator;
+    SpriteRenderer sprite;
 
     //FACING OPPONENT
     public Transform opponent;
@@ -30,6 +32,12 @@ public class FighterController : MonoBehaviour {
             facingRight = false;
 
         transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1); //It evaluates if facing right, sets to 1 or -1 based on the bool. the other parameters are the y,z cord
+        if (facingRight == true && isGrounded == true) {
+            sprite.flipX = true;
+        }
+        if (facingRight == false && isGrounded == true) {
+            sprite.flipX = true;
+        }
     }
 
     //STATES
@@ -95,6 +103,7 @@ public class FighterController : MonoBehaviour {
     //Stationary functions
     void Idle() {
         float forwardInput = GetForwardInput();
+        animator.Play("idle");
         if (moveInput.y < -0.5f) {
             currentState = FighterState.Crouch;
         }
@@ -120,6 +129,7 @@ public class FighterController : MonoBehaviour {
     void WalkForward() { //Walks towards opponent, not necessarily the direction right
         float direction = facingRight ? 1 : -1;
         transform.position += new Vector3(direction * walkSpeed * Time.deltaTime, 0, 0);
+        animator.Play("walkf");
         if (GetForwardInput() <= 0) {
             currentState = FighterState.Idle;
         }
@@ -191,6 +201,13 @@ public class FighterController : MonoBehaviour {
 
 
     //Game Functions
+
+    private void Awake() {
+        if (animator == null) {
+            animator = GetComponentInChildren<Animator>();
+            sprite = GetComponentInChildren<SpriteRenderer>();
+        }
+    }
     void Start() {
         groundY = -34;
     }
