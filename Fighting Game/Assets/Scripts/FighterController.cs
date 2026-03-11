@@ -1,7 +1,7 @@
 using System.Runtime.ExceptionServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using static UnityEditor.PlayerSettings;
+
 
 public class FighterController : MonoBehaviour {
     //PARAMETERS
@@ -9,10 +9,10 @@ public class FighterController : MonoBehaviour {
     public int supermeter = 0;
     public float walkSpeed = 5f;
     public float backWalkSpeed = 2f;
-    public float jumpForce = 10f;
+    public float jumpForce = 10f; //vertical force of your jump
     public float gravity = -30f;
-    public float fallMultiplier = 3f;
-    public float airSpeed = 10f;
+    public float fallMultiplier = 3f; //fall faster after apex
+    public float airSpeed = 10f; //horizontal jump force
     bool jumpPressedLastFrame;
     float verticalVelocity;
     float jumpDirection;

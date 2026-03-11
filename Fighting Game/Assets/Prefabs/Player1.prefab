@@ -13,11 +13,8 @@ GameObject:
   - component: {fileID: 6074171548102891632}
   - component: {fileID: 2680171353293464517}
   - component: {fileID: 8560569529028422161}
-  - component: {fileID: 274079916415385754}
   - component: {fileID: 5202306653343502427}
-  - component: {fileID: 1488992214618501120}
-  - component: {fileID: 6330400180513723869}
-  - component: {fileID: 5102601631770498444}
+  - component: {fileID: 838277518977220697}
   m_Layer: 0
   m_Name: Player1
   m_TagString: Player1
@@ -194,28 +191,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &274079916415385754
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 11f1f5c7c879ddc4a9f4335fc7fb0b1e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FighterController
-  health: 100
-  supermeter: 0
-  walkSpeed: 5
-  backWalkSpeed: 2
-  jumpForce: 10
-  gravity: -30
-  fallMultiplier: 3
-  airSpeed: 10
-  opponent: {fileID: 0}
-  currentState: 0
 --- !u!114 &5202306653343502427
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -322,7 +297,7 @@ MonoBehaviour:
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
---- !u!114 &1488992214618501120
+--- !u!114 &838277518977220697
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -331,30 +306,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 9162551287176415162}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 18122c3731da4c34199216a68f58dd2c, type: 3}
+  m_Script: {fileID: 11500000, guid: 11f1f5c7c879ddc4a9f4335fc7fb0b1e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HitboxManager
---- !u!114 &6330400180513723869
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dcd09437bfdc20b4788f1edd27aef817, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HurtboxManager
---- !u!114 &5102601631770498444
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9162551287176415162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 03f9d6ded563b7b47ab9000cd085d2ea, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InputBuffer
+  m_EditorClassIdentifier: Assembly-CSharp::FighterController
+  health: 100
+  supermeter: 0
+  walkSpeed: 100
+  backWalkSpeed: 95
+  jumpForce: 180
+  gravity: -500
+  fallMultiplier: 4.5
+  airSpeed: 140
+  opponent: {fileID: 0}
+  currentState: 0
