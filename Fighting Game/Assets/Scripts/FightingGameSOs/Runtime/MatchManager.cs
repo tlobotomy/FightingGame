@@ -98,6 +98,7 @@ namespace FightingGame.Runtime {
                 return;
             }
 
+
             _players[idx] = controller;
             _detectors[idx] = detector;
 
