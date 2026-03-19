@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b191f20531b551849b9f9695a654cc45, type: 3}
+  m_Name: Ryu_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
+  MovesetName: Ryu_Moveset
+  StandLightPunch: {fileID: 11400000, guid: 3a5bf814b97f5f842887d8ff3fff3488, type: 2}
+  StandMediumPunch: {fileID: 0}
+  StandHeavyPunch: {fileID: 0}
+  StandLightKick: {fileID: 0}
+  StandMediumKick: {fileID: 0}
+  StandHeavyKick: {fileID: 0}
+  CrouchLightPunch: {fileID: 0}
+  CrouchMediumPunch: {fileID: 0}
+  CrouchHeavyPunch: {fileID: 0}
+  CrouchLightKick: {fileID: 0}
+  CrouchMediumKick: {fileID: 0}
+  CrouchHeavyKick: {fileID: 0}
+  JumpLightPunch: {fileID: 0}
+  JumpMediumPunch: {fileID: 0}
+  JumpHeavyPunch: {fileID: 0}
+  JumpLightKick: {fileID: 0}
+  JumpMediumKick: {fileID: 0}
+  JumpHeavyKick: {fileID: 0}
+  CommandNormals: []
+  Specials: []
+  EXSpecials: []
+  SuperArts: []
+  ForwardThrow: {fileID: 0}
+  BackThrow: {fileID: 0}
+  Dash: {fileID: 0}
+  BackDash: {fileID: 0}
+  Taunt: {fileID: 0}
+  TargetCombos: []

@@ -1,0 +1,108 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
+  m_Name: Ryu_StLP
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
+  MoveName: Stand Light Punch
+  Notation: LP
+  Type: 0
+  UsableFrom: 1
+  Motion:
+    Type: 0
+    Button: 0
+    CustomSequence: 
+    ChargeFrames: 0
+    InputWindow: 0
+    AllowNegativeEdge: 0
+  RequiredDirection: 0
+  InputPriority: 0
+  Frames:
+    Startup: 6
+    Active: 3
+    Recovery: 6
+    HitAdvantage: 3
+    BlockAdvantage: 0
+    HitstunOverride: 0
+    BlockstunOverride: 0
+  Damage:
+    BaseDamage: 10
+    ChipDamage: 0
+    StunDamage: 2
+    DamageScaling: 1
+    MeterGainOnHit: 10
+    MeterGainOnWhiff: 5
+  Height: 1
+  OnHitEffect: 0
+  HitKnockback: {x: 0.5, y: 0}
+  BlockKnockback: {x: 3, y: 0}
+  HitCount: 1
+  MultiHitInterval: 0
+  Cancel:
+    MaxCancelLevel: 1
+    CancelWindowStart: 7
+    CancelWindowEnd: 10
+    AllowKaraCancel: 0
+    KaraCancelFrames: 0
+    AlwaysSuperCancellable: 0
+  TargetComboRoutes: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 3
+    Hitboxes:
+    - Offset: {x: 1, y: 0.5}
+      Size: {x: 2, y: 2}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
+  HurtboxOverrides: []
+  HurtboxOverrideFrameRanges: []
+  Movement:
+    HorizontalCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.9944458
+        value: 0.60476303
+        inSlope: 0.60814077
+        outSlope: 0.60814077
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    VerticalCurve:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    HorizontalSpeed: 0
+    VerticalSpeed: 0
+    Airborne: 0
+  AnimationStateName: 
+  AnimationClip: {fileID: 7400000, guid: d0a3ff3440f168d4089f5d9decad04f8, type: 2}
+  HitEffectPrefab: {fileID: 0}
+  WhiffEffectPrefab: {fileID: 0}
+  SwingSound: {fileID: 0}
+  HitSound: {fileID: 0}
+  BlockSound: {fileID: 0}
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpawnFrame: 0
+  ProjectileSpawnOffset: {x: 0, y: 0}
+  MeterCost: 0
+  SuperStockIndex: -1
+  Parryable: 1
+  IsEX: 0
+  JuggleCost: 0
