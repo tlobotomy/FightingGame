@@ -10,20 +10,21 @@ namespace FightingGame.Runtime {
     /// Manages the character select screen for two local players.
     ///
     /// Flow:
-    ///   1. Both players navigate a grid of characters with their stick/dpad
-    ///   2. A button press locks in the character
-    ///   3. Super art selection appears for each locked player
-    ///   4. Once both are locked with super arts chosen, transition to battle
-    ///
-    /// Supports both players on the same screen. P1 uses one input device,
-    /// P2 uses another (or keyboard left/right halves).
+    ///   1. Players join by pressing a button on their device
+    ///   2. Each navigates the roster grid with their stick/dpad
+    ///   3. A button press locks in the character
+    ///   4. Super art selection appears for each locked player
+    ///   5. Once both are locked with super arts chosen, transition to battle
     ///
     /// Setup:
-    ///   - Attach to a GameObject in the character select scene
-    ///   - Requires a PlayerInputManager if you want auto-join,
-    ///     OR you can use two pre-placed PlayerInput components
+    ///   - Attach to a GameObject alongside a PlayerInputManager
+    ///   - Set PlayerInputManager's Player Prefab to a prefab with only
+    ///     a PlayerInput component + CharacterSelectPlayer component
+    ///   - Set PlayerInputManager's Max Player Count to 2
+    ///   - Wire PlayerInputManager's Player Joined Event → this.OnPlayerJoined
     ///   - Fill the Roster array with every selectable CharacterData
     /// </summary>
+    [RequireComponent(typeof(PlayerInputManager))]
     public class CharacterSelectManager : MonoBehaviour {
         // ──────────────────────────────────────
         //  INSPECTOR
@@ -64,6 +65,10 @@ namespace FightingGame.Runtime {
         [Header("UI — Ready")]
         public GameObject ReadyBanner;
 
+        [Header("UI — Join Prompt")]
+        [Tooltip("Shown before both players have joined (e.g. 'Press any button to join').")]
+        public GameObject JoinPrompt;
+
         [Header("Scene Transition")]
         [Tooltip("Name of the battle scene to load.")]
         public string BattleSceneName = "BattleScene";
@@ -72,6 +77,7 @@ namespace FightingGame.Runtime {
         public float TransitionDelay = 1.5f;
 
         [Header("Audio")]
+        public AudioClip JoinSound;
         public AudioClip CursorMoveSound;
         public AudioClip ConfirmSound;
         public AudioClip CancelSound;
@@ -81,7 +87,7 @@ namespace FightingGame.Runtime {
         //  STATE
         // ──────────────────────────────────────
 
-        private enum SelectPhase { Browsing, SuperArtSelect, Locked }
+        private enum SelectPhase { NotJoined, Browsing, SuperArtSelect, Locked }
 
         private int[] _cursorIndex = new int[2];
         private SelectPhase[] _phase = new SelectPhase[2];
@@ -89,15 +95,10 @@ namespace FightingGame.Runtime {
         private CharacterData[] _selected = new CharacterData[2];
 
         private bool _transitioning;
+        private int _playersJoined;
 
-        // Input tracking — we read sticks manually each frame
-        // because we're not using PlayerController here.
-        private Vector2[] _rawStick = new Vector2[2];
-        private bool[] _confirmPressed = new bool[2];
-        private bool[] _cancelPressed = new bool[2];
-
-        // Prevents stick repeat: must return to neutral before next move
-        private bool[] _stickConsumed = new bool[2];
+        // References to spawned player input handlers
+        private CharacterSelectPlayer[] _inputHandlers = new CharacterSelectPlayer[2];
 
         // ──────────────────────────────────────
         //  LIFECYCLE
@@ -109,103 +110,136 @@ namespace FightingGame.Runtime {
                 return;
             }
 
-            _phase[0] = SelectPhase.Browsing;
-            _phase[1] = SelectPhase.Browsing;
+            _phase[0] = SelectPhase.NotJoined;
+            _phase[1] = SelectPhase.NotJoined;
 
             if (P1SuperArtPanel != null) P1SuperArtPanel.SetActive(false);
             if (P2SuperArtPanel != null) P2SuperArtPanel.SetActive(false);
             if (ReadyBanner != null) ReadyBanner.SetActive(false);
+            if (JoinPrompt != null) JoinPrompt.SetActive(true);
 
-            UpdateUI(0);
-            UpdateUI(1);
+            // Hide cursors until players join
+            if (P1Cursor != null) P1Cursor.gameObject.SetActive(false);
+            if (P2Cursor != null) P2Cursor.gameObject.SetActive(false);
         }
 
         // ──────────────────────────────────────
-        //  INPUT CALLBACKS
-        //  Wire these on two PlayerInput components
-        //  (one per player), or use a PlayerInputManager.
+        //  PLAYER JOIN
+        //  Wire PlayerInputManager's "Player Joined Event" to this.
         // ──────────────────────────────────────
 
         /// <summary>
-        /// Called by PlayerInput for each player. The playerIndex
-        /// determines which player (0 or 1) the input belongs to.
+        /// Called by PlayerInputManager when a player presses a button
+        /// on their device to join. The spawned prefab must have a
+        /// CharacterSelectPlayer component.
         /// </summary>
-        public void OnNavigate(InputAction.CallbackContext ctx) {
-            int idx = GetPlayerIndex(ctx);
-            if (idx < 0) return;
-
-            _rawStick[idx] = ctx.ReadValue<Vector2>();
-
-            // Reset consumed flag when stick returns to neutral
-            if (_rawStick[idx].magnitude < 0.3f)
-                _stickConsumed[idx] = false;
-        }
-
-        public void OnConfirm(InputAction.CallbackContext ctx) {
-            int idx = GetPlayerIndex(ctx);
-            if (idx < 0) return;
-            if (ctx.started) _confirmPressed[idx] = true;
-        }
-
-        public void OnCancel(InputAction.CallbackContext ctx) {
-            int idx = GetPlayerIndex(ctx);
-            if (idx < 0) return;
-            if (ctx.started) _cancelPressed[idx] = true;
-        }
-
-        private int GetPlayerIndex(InputAction.CallbackContext ctx) {
-            var pi = ctx.action.actionMap?.FindAction("Navigate")?.actionMap;
-            // Fallback: use PlayerInput component's playerIndex
-            var playerInput = ctx.action.actionMap?.asset?.name;
-            // Simplest approach: check which PlayerInput sent this
-            var inputs = FindObjectsOfType<PlayerInput>();
-            foreach (var input in inputs) {
-                if (input.currentActionMap == ctx.action.actionMap)
-                    return input.playerIndex;
+        public void OnPlayerJoined(PlayerInput playerInput) {
+            int idx = playerInput.playerIndex;
+            if (idx > 1) {
+                Debug.LogWarning("[CharacterSelect] More than 2 players attempted to join.");
+                Destroy(playerInput.gameObject);
+                return;
             }
-            return -1;
+
+            // Get the input handler on the spawned prefab
+            var handler = playerInput.GetComponent<CharacterSelectPlayer>();
+            if (handler == null) {
+                Debug.LogError("[CharacterSelect] Select player prefab missing CharacterSelectPlayer component.");
+                return;
+            }
+
+            // Register this handler and link it back to us
+            _inputHandlers[idx] = handler;
+            handler.Initialize(this, idx);
+
+            _phase[idx] = SelectPhase.Browsing;
+            _playersJoined++;
+
+            // Show this player's cursor
+            RectTransform cursor = idx == 0 ? P1Cursor : P2Cursor;
+            if (cursor != null) cursor.gameObject.SetActive(true);
+
+            // Hide join prompt once both players are in
+            if (_playersJoined >= 2 && JoinPrompt != null)
+                JoinPrompt.SetActive(false);
+
+            PlaySound(JoinSound);
+            UpdateUI(idx);
+
+            Debug.Log($"[CharacterSelect] Player {idx + 1} joined.");
         }
 
         // ──────────────────────────────────────
-        //  UPDATE LOOP
+        //  INPUT RECEPTION
+        //  Called by CharacterSelectPlayer when it receives input.
         // ──────────────────────────────────────
 
-        private void Update() {
+        /// <summary>
+        /// Called by CharacterSelectPlayer each frame with the current stick value.
+        /// </summary>
+        public void OnPlayerNavigate(int playerIndex, Vector2 stick) {
+            if (playerIndex < 0 || playerIndex > 1) return;
+            if (_phase[playerIndex] == SelectPhase.NotJoined) return;
+
+            HandleStickInput(playerIndex, stick);
+        }
+
+        /// <summary>
+        /// Called by CharacterSelectPlayer on confirm button press.
+        /// </summary>
+        public void OnPlayerConfirm(int playerIndex) {
+            if (playerIndex < 0 || playerIndex > 1) return;
             if (_transitioning) return;
 
-            for (int i = 0; i < 2; i++) {
-                switch (_phase[i]) {
-                    case SelectPhase.Browsing:
-                        HandleBrowsing(i);
-                        break;
-                    case SelectPhase.SuperArtSelect:
-                        HandleSuperArtSelect(i);
-                        break;
-                    case SelectPhase.Locked:
-                        HandleLocked(i);
-                        break;
-                }
+            switch (_phase[playerIndex]) {
+                case SelectPhase.Browsing:
+                    ConfirmCharacter(playerIndex);
+                    break;
+                case SelectPhase.SuperArtSelect:
+                    ConfirmSuperArt(playerIndex);
+                    break;
             }
+        }
 
-            // Reset per-frame input flags
-            _confirmPressed[0] = false;
-            _confirmPressed[1] = false;
-            _cancelPressed[0] = false;
-            _cancelPressed[1] = false;
+        /// <summary>
+        /// Called by CharacterSelectPlayer on cancel button press.
+        /// </summary>
+        public void OnPlayerCancel(int playerIndex) {
+            if (playerIndex < 0 || playerIndex > 1) return;
+            if (_transitioning) return;
+
+            switch (_phase[playerIndex]) {
+                case SelectPhase.SuperArtSelect:
+                    CancelSuperArt(playerIndex);
+                    break;
+                case SelectPhase.Locked:
+                    CancelLock(playerIndex);
+                    break;
+            }
         }
 
         // ──────────────────────────────────────
-        //  PHASE: BROWSING (moving cursor over roster)
+        //  STICK NAVIGATION
         // ──────────────────────────────────────
 
-        private void HandleBrowsing(int player) {
-            // Stick navigation
-            if (!_stickConsumed[player] && _rawStick[player].magnitude > 0.5f) {
+        // Prevents stick repeat: must return to neutral before next move
+        private bool[] _stickConsumed = new bool[2];
+
+        private void HandleStickInput(int player, Vector2 stick) {
+            // Reset consumed flag when stick returns to neutral
+            if (stick.magnitude < 0.3f) {
+                _stickConsumed[player] = false;
+                return;
+            }
+
+            if (_stickConsumed[player]) return;
+
+            if (_phase[player] == SelectPhase.Browsing) {
                 int dx = 0, dy = 0;
-                if (_rawStick[player].x > 0.5f) dx = 1;
-                else if (_rawStick[player].x < -0.5f) dx = -1;
-                if (_rawStick[player].y > 0.5f) dy = -1;   // up = previous row
-                else if (_rawStick[player].y < -0.5f) dy = 1; // down = next row
+                if (stick.x > 0.5f) dx = 1;
+                else if (stick.x < -0.5f) dx = -1;
+                if (stick.y > 0.5f) dy = -1;   // up = previous row
+                else if (stick.y < -0.5f) dy = 1; // down = next row
 
                 int newIndex = _cursorIndex[player] + dx + (dy * GridColumns);
                 newIndex = Mathf.Clamp(newIndex, 0, Roster.Length - 1);
@@ -218,93 +252,82 @@ namespace FightingGame.Runtime {
 
                 _stickConsumed[player] = true;
             }
+            else if (_phase[player] == SelectPhase.SuperArtSelect) {
+                var superArts = _selected[player].Moveset.SuperArts;
+                int dir = stick.x > 0.5f ? 1 : stick.x < -0.5f ? -1 : 0;
 
-            // Confirm → lock in character, move to super art select
-            if (_confirmPressed[player]) {
-                _selected[player] = Roster[_cursorIndex[player]];
-                PlaySound(ConfirmSound);
-
-                // Check if this character has super arts to choose from
-                if (_selected[player].Moveset != null
-                    && _selected[player].Moveset.SuperArts != null
-                    && _selected[player].Moveset.SuperArts.Length > 1) {
-                    _phase[player] = SelectPhase.SuperArtSelect;
-                    _superArtCursor[player] = 0;
-                    ShowSuperArtPanel(player);
+                if (dir != 0) {
+                    _superArtCursor[player] = Mathf.Clamp(
+                        _superArtCursor[player] + dir, 0, superArts.Length - 1);
+                    PlaySound(CursorMoveSound);
+                    UpdateSuperArtUI(player);
+                    _stickConsumed[player] = true;
                 }
-                else {
-                    // Only one or no super arts — skip selection
-                    _phase[player] = SelectPhase.Locked;
-                    MatchSettings.SelectedSuperArts[player] = 0;
-                }
-
-                MatchSettings.SelectedCharacters[player] = _selected[player];
-                UpdateUI(player);
-                CheckBothReady();
             }
         }
 
         // ──────────────────────────────────────
-        //  PHASE: SUPER ART SELECT
+        //  CONFIRM / CANCEL ACTIONS
         // ──────────────────────────────────────
 
-        private void HandleSuperArtSelect(int player) {
-            var superArts = _selected[player].Moveset.SuperArts;
+        private void ConfirmCharacter(int player) {
+            _selected[player] = Roster[_cursorIndex[player]];
+            MatchSettings.SelectedCharacters[player] = _selected[player];
+            PlaySound(ConfirmSound);
 
-            // Navigate between super art options
-            if (!_stickConsumed[player] && Mathf.Abs(_rawStick[player].x) > 0.5f) {
-                int dir = _rawStick[player].x > 0 ? 1 : -1;
-                _superArtCursor[player] = Mathf.Clamp(
-                    _superArtCursor[player] + dir, 0, superArts.Length - 1);
-                PlaySound(CursorMoveSound);
-                UpdateSuperArtUI(player);
-                _stickConsumed[player] = true;
+            // Check if this character has super arts to choose from
+            if (_selected[player].Moveset != null
+                && _selected[player].Moveset.SuperArts != null
+                && _selected[player].Moveset.SuperArts.Length > 1) {
+                _phase[player] = SelectPhase.SuperArtSelect;
+                _superArtCursor[player] = 0;
+                ShowSuperArtPanel(player);
             }
-
-            // Confirm super art
-            if (_confirmPressed[player]) {
-                MatchSettings.SelectedSuperArts[player] = _superArtCursor[player];
+            else {
+                // Only one or no super arts — skip selection
                 _phase[player] = SelectPhase.Locked;
-                PlaySound(ConfirmSound);
-                UpdateUI(player);
+                MatchSettings.SelectedSuperArts[player] = 0;
                 CheckBothReady();
             }
 
-            // Cancel → go back to browsing
-            if (_cancelPressed[player]) {
+            UpdateUI(player);
+        }
+
+        private void ConfirmSuperArt(int player) {
+            MatchSettings.SelectedSuperArts[player] = _superArtCursor[player];
+            _phase[player] = SelectPhase.Locked;
+            HideSuperArtPanel(player);
+            PlaySound(ConfirmSound);
+            UpdateUI(player);
+            CheckBothReady();
+        }
+
+        private void CancelSuperArt(int player) {
+            _phase[player] = SelectPhase.Browsing;
+            _selected[player] = null;
+            MatchSettings.SelectedCharacters[player] = null;
+            HideSuperArtPanel(player);
+            PlaySound(CancelSound);
+            UpdateUI(player);
+        }
+
+        private void CancelLock(int player) {
+            // If they had super art selection, go back there
+            if (_selected[player].Moveset != null
+                && _selected[player].Moveset.SuperArts != null
+                && _selected[player].Moveset.SuperArts.Length > 1) {
+                _phase[player] = SelectPhase.SuperArtSelect;
+                ShowSuperArtPanel(player);
+            }
+            else {
                 _phase[player] = SelectPhase.Browsing;
                 _selected[player] = null;
                 MatchSettings.SelectedCharacters[player] = null;
-                HideSuperArtPanel(player);
-                PlaySound(CancelSound);
-                UpdateUI(player);
             }
-        }
 
-        // ──────────────────────────────────────
-        //  PHASE: LOCKED (waiting for the other player)
-        // ──────────────────────────────────────
-
-        private void HandleLocked(int player) {
-            // Cancel → unlock and go back
-            if (_cancelPressed[player]) {
-                // If they had super art selection, go back there
-                if (_selected[player].Moveset != null
-                    && _selected[player].Moveset.SuperArts != null
-                    && _selected[player].Moveset.SuperArts.Length > 1) {
-                    _phase[player] = SelectPhase.SuperArtSelect;
-                    ShowSuperArtPanel(player);
-                }
-                else {
-                    _phase[player] = SelectPhase.Browsing;
-                    _selected[player] = null;
-                    MatchSettings.SelectedCharacters[player] = null;
-                }
-
-                PlaySound(CancelSound);
-                if (ReadyBanner != null) ReadyBanner.SetActive(false);
-                UpdateUI(player);
-            }
+            PlaySound(CancelSound);
+            if (ReadyBanner != null) ReadyBanner.SetActive(false);
+            UpdateUI(player);
         }
 
         // ──────────────────────────────────────
@@ -332,6 +355,13 @@ namespace FightingGame.Runtime {
         }
 
         private void LoadBattleScene() {
+            // Destroy the spawned select-screen player objects
+            // so they don't carry into the battle scene
+            for (int i = 0; i < 2; i++) {
+                if (_inputHandlers[i] != null)
+                    Destroy(_inputHandlers[i].gameObject);
+            }
+
             SceneManager.LoadScene(BattleSceneName);
         }
 
@@ -340,6 +370,8 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         private void UpdateUI(int player) {
+            if (_phase[player] == SelectPhase.NotJoined) return;
+
             CharacterData highlighted = Roster[_cursorIndex[player]];
 
             // Portrait
@@ -365,7 +397,6 @@ namespace FightingGame.Runtime {
             if (cursor != null) {
                 var img = cursor.GetComponent<Image>();
                 if (img != null) {
-                    // Brighter/thicker when locked
                     Color c = img.color;
                     c.a = _phase[player] == SelectPhase.Locked ? 1f : 0.6f;
                     img.color = c;
@@ -397,7 +428,6 @@ namespace FightingGame.Runtime {
 
                 if (i < superArts.Length) {
                     labels[i].text = superArts[i].Name;
-                    // Highlight the currently selected one
                     labels[i].fontStyle = (i == _superArtCursor[player])
                         ? FontStyles.Bold | FontStyles.Underline
                         : FontStyles.Normal;

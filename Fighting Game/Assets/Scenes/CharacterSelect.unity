@@ -670,8 +670,10 @@ MonoBehaviour:
   P1SuperArtLabels: []
   P2SuperArtLabels: []
   ReadyBanner: {fileID: 0}
+  JoinPrompt: {fileID: 0}
   BattleSceneName: BattleScene
   TransitionDelay: 1.5
+  JoinSound: {fileID: 0}
   CursorMoveSound: {fileID: 0}
   ConfirmSound: {fileID: 0}
   CancelSound: {fileID: 0}
@@ -695,13 +697,14 @@ MonoBehaviour:
   m_PlayerJoinedEvent:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1647752186}
-        m_TargetAssemblyTypeName: 
-        m_MethodName: 
-        m_Mode: 1
+      - m_Target: {fileID: 1647752188}
+        m_TargetAssemblyTypeName: FightingGame.Runtime.CharacterSelectManager, Assembly-CSharp
+        m_MethodName: OnPlayerJoined
+        m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: 
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.InputSystem.PlayerInput,
+            Unity.InputSystem
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -722,7 +725,7 @@ MonoBehaviour:
       m_SingletonActionBindings: []
       m_Flags: 0
     m_Reference: {fileID: 0}
-  m_PlayerPrefab: {fileID: 1046544576433702239, guid: 4a7d987f8de78aa46ae40ab278cb339a, type: 3}
+  m_PlayerPrefab: {fileID: 1814292073256504259, guid: 5a4906f11bc58ce4b8dcf404806acfd5, type: 3}
   m_SplitScreen: 0
   m_MaintainAspectRatioInSplitScreen: 0
   m_FixedNumberOfSplitScreens: -1

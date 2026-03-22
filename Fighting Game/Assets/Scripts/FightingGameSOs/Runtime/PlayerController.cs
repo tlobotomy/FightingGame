@@ -28,6 +28,8 @@ namespace FightingGame.Runtime {
         private InputDetector _detector;
         private InputBuffer _buffer;
         private InputParser _parser;
+        private Animator _animator;
+        private AudioSource _audioSource;
 
         // Cached from Character.Moveset at startup — avoids
         // repeated array allocations every frame.
@@ -75,10 +77,6 @@ namespace FightingGame.Runtime {
         private int _meter;
         private int _stunMeter;
 
-        // Target combo tracking
-        //private int _targetComboIndex = -1;
-        //private TargetCombo _activeTargetCombo;
-
         // ──────────────────────────────────────
         //  PUBLIC ACCESSORS
         // ──────────────────────────────────────
@@ -90,6 +88,15 @@ namespace FightingGame.Runtime {
         public MoveData CurrentMove => _currentMove;
         public int MoveFrame => _moveFrame;
         public int FacingSign => _detector.FacingSign;
+
+        /// <summary>
+        /// Called by MatchManager after instantiating the character's
+        /// visual prefab, to link the animator and audio source.
+        /// </summary>
+        public void SetVisualReferences(Animator animator, AudioSource audioSource) {
+            _animator = animator;
+            _audioSource = audioSource;
+        }
 
         // ──────────────────────────────────────
         //  INITIALIZATION
@@ -241,11 +248,13 @@ namespace FightingGame.Runtime {
             _moveFrame = 0;
             SetState(PlayerState.Startup);
 
-            // TODO: trigger animation
-            // _animator.Play(move.AnimationStateName);
+            // Trigger animation
+            if (_animator != null && !string.IsNullOrEmpty(move.AnimationStateName))
+                _animator.Play(move.AnimationStateName, 0, 0f);
 
-            // TODO: play swing sound
-            // if (move.SwingSound != null) ...
+            // Play swing sound
+            if (_audioSource != null && move.SwingSound != null)
+                _audioSource.PlayOneShot(move.SwingSound);
         }
 
         /// <summary>
@@ -492,18 +501,34 @@ namespace FightingGame.Runtime {
         /// Called by the hit resolution system when this player is hit.
         /// </summary>
         public void TakeHit(MoveData move, bool blocked) {
+            // Cancel any current move — we're being interrupted
+            _currentMove = null;
+
             if (blocked) {
-                int blockstun = move.Frames.Blockstun;
                 _health -= Mathf.RoundToInt(move.Damage.ChipDamage * Character.DefenseModifier);
                 SetState(PlayerState.Blockstun);
-                // _stateFrameCounter is reset by SetState; blockstun ends
-                // when _stateFrameCounter >= blockstun (checked externally or in TickState)
+
+                // Block sound
+                if (_audioSource != null && move.BlockSound != null)
+                    _audioSource.PlayOneShot(move.BlockSound);
+
+                // Block pushback
+                transform.position += new Vector3(
+                    -move.BlockKnockback.x * _detector.FacingSign,
+                    move.BlockKnockback.y, 0);
             }
             else {
-                int hitstun = move.Frames.Hitstun;
                 int damage = Mathf.RoundToInt(move.Damage.BaseDamage * Character.DefenseModifier);
                 _health -= damage;
                 _stunMeter -= move.Damage.StunDamage;
+
+                // Hit sound
+                if (_audioSource != null && move.HitSound != null)
+                    _audioSource.PlayOneShot(move.HitSound);
+
+                // Spawn hit effect
+                if (move.HitEffectPrefab != null)
+                    Instantiate(move.HitEffectPrefab, transform.position, Quaternion.identity);
 
                 if (_health <= 0) {
                     SetState(PlayerState.KO);
@@ -519,7 +544,9 @@ namespace FightingGame.Runtime {
                 SetState(PlayerState.Hitstun);
 
                 // Apply knockback
-                // TODO: transform.position += knockback based on move.HitKnockback
+                transform.position += new Vector3(
+                    -move.HitKnockback.x * _detector.FacingSign,
+                    move.HitKnockback.y, 0);
             }
 
             // Grant meter to the attacker (handled by MatchManager)
@@ -533,6 +560,39 @@ namespace FightingGame.Runtime {
             if (_state == newState) return;
             _state = newState;
             _stateFrameCounter = 0;
+
+            // Drive non-move animations (idle, walk, crouch, etc.)
+            // Move animations are handled in ExecuteMove instead.
+            if (_animator != null && _currentMove == null) {
+                string stateName = GetAnimationStateForPlayerState(newState);
+                if (stateName != null)
+                    _animator.Play(stateName, 0, 0f);
+            }
+        }
+
+        /// <summary>
+        /// Maps player states to Animator state names.
+        /// These must match state names in your Animator Controller.
+        /// </summary>
+        private string GetAnimationStateForPlayerState(PlayerState state) {
+            switch (state) {
+                case PlayerState.Idle: return "Idle";
+                case PlayerState.WalkForward: return "WalkForward";
+                case PlayerState.WalkBack: return "WalkBack";
+                case PlayerState.Crouching: return "Crouch";
+                case PlayerState.PreJump: return "PreJump";
+                case PlayerState.Airborne: return "Jump";
+                case PlayerState.JumpLanding: return "Landing";
+                case PlayerState.DashForward: return "DashForward";
+                case PlayerState.DashBack: return "DashBack";
+                case PlayerState.Hitstun: return "Hitstun";
+                case PlayerState.Blockstun: return "Blockstun";
+                case PlayerState.Knockdown: return "Knockdown";
+                case PlayerState.Wakeup: return "Wakeup";
+                case PlayerState.Stunned: return "Stunned";
+                case PlayerState.KO: return "KO";
+                default: return null;
+            }
         }
 
         private bool IsMovementState() {

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b191f20531b551849b9f9695a654cc45, type: 3}
-  m_Name: Ryu_Moveset
+  m_Name: Warrior_Moveset
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
-  MovesetName: Ryu_Moveset
-  StandLightPunch: {fileID: 11400000, guid: 3a5bf814b97f5f842887d8ff3fff3488, type: 2}
+  MovesetName: Warrior Moveset
+  StandLightPunch: {fileID: 11400000, guid: 8e4fe9c538f211441acf9100dc30b22d, type: 2}
   StandMediumPunch: {fileID: 0}
-  StandHeavyPunch: {fileID: 11400000, guid: 5b6e7c548a408284893299fe8828571e, type: 2}
+  StandHeavyPunch: {fileID: 0}
   StandLightKick: {fileID: 0}
   StandMediumKick: {fileID: 0}
   StandHeavyKick: {fileID: 0}

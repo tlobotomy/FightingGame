@@ -98,8 +98,6 @@ namespace FightingGame.Runtime {
                 return;
             }
 
-
-
             _players[idx] = controller;
             _detectors[idx] = detector;
 
@@ -120,7 +118,26 @@ namespace FightingGame.Runtime {
 
             // Spawn character visual prefab as child
             if (controller.Character != null && controller.Character.CharacterPrefab != null) {
-                Instantiate(controller.Character.CharacterPrefab, controller.transform);
+                var visual = Instantiate(controller.Character.CharacterPrefab, controller.transform);
+
+                // Link animator and audio to the controller
+                var animator = visual.GetComponentInChildren<Animator>();
+                var audioSource = visual.GetComponentInChildren<AudioSource>();
+
+                // Add an AudioSource to the visual if one doesn't exist
+                if (audioSource == null)
+                    audioSource = visual.AddComponent<AudioSource>();
+
+                controller.SetVisualReferences(animator, audioSource);
+
+                // Apply palette swap for the selected color
+                int palette = MatchSettings.SelectedPalettes[idx];
+                if (controller.Character.ColorPalettes != null
+                    && palette < controller.Character.ColorPalettes.Length) {
+                    var renderers = visual.GetComponentsInChildren<SpriteRenderer>();
+                    foreach (var renderer in renderers)
+                        renderer.material = controller.Character.ColorPalettes[palette];
+                }
             }
 
             Debug.Log($"[MatchManager] Player {idx + 1} joined ({controller.Character.CharacterName}).");
