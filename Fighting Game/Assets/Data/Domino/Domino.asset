@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8728dbe7b79b933489c554756d5b0407, type: 3}
   m_Name: Domino
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.CharacterData
-  CharacterName: 
-  Description: 
+  CharacterName: Domino
+  Description: Diva's twin or older sister.
   Portrait: {fileID: 0}
   FullBodyArt: {fileID: 0}
-  CharacterPrefab: {fileID: 0}
+  CharacterPrefab: {fileID: 250968438874482646, guid: 2652a0854aeaaf440afeab3840531e3a, type: 3}
   Moveset: {fileID: 0}
   SelectedSuperArt: 0
   MaxHealth: 1200

@@ -50,12 +50,12 @@ namespace FightingGame.Runtime {
             _rawStick = ctx.ReadValue<Vector2>();
         }
 
-        public void OnLightPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.LightPunch);
-        public void OnMediumPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.MediumPunch);
-        public void OnHeavyPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.HeavyPunch);
-        public void OnLightKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.LightKick);
-        public void OnMediumKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.MediumKick);
-        public void OnHeavyKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.HeavyKick);
+        // GGXX 4+1 button layout: P / K / S / HS / D
+        public void OnPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Punch);
+        public void OnKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Kick);
+        public void OnSlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Slash);
+        public void OnHeavySlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.HeavySlash);
+        public void OnDust(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Dust);
 
         private void HandleButton(InputAction.CallbackContext ctx, ButtonInput btn) {
             if (ctx.started) {

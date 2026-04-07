@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8728dbe7b79b933489c554756d5b0407, type: 3}
+  m_Name: Diva
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.CharacterData
+  CharacterName: Diva
+  Description: 
+  Portrait: {fileID: 21300000, guid: bcfeba6aae7ebcf4fa16143cd6be524f, type: 3}
+  FullBodyArt: {fileID: 21300000, guid: c1e1fa1121db8044f8867f5bc0fd3395, type: 3}
+  CharacterPrefab: {fileID: 250968438874482646, guid: 6f10d3f6bbc3890499b2dac8479036d5, type: 3}
+  Moveset: {fileID: 11400000, guid: 365f31694e072a04a9919d72b0816ec5, type: 2}
+  MaxHealth: 420
+  MaxStun: 65
+  StunRecoveryRate: 2
+  StunDuration: 150
+  WalkForwardSpeed: 0.055
+  WalkBackwardSpeed: 0.038
+  JumpForwardSpeed: 0.065
+  JumpHeight: 0.28
+  Gravity: 0.013
+  PreJumpFrames: 3
+  JumpLandingFrames: 1
+  DashDuration: 16
+  DashDistance: 1.8
+  BackDashDuration: 22
+  BackDashDistance: 1.3
+  BackDashInvincibleFrames: 7
+  DefenseModifier: 1
+  BlockPushbackModifier: 1
+  StandingHurtbox:
+    Label: Standing Hurtbox
+    Hurtboxes:
+    - Offset: {x: 0, y: 0}
+      Size: {x: 1, y: 1}
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  CrouchingHurtbox:
+    Label: 
+    Hurtboxes: []
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  AirborneHurtbox:
+    Label: 
+    Hurtboxes: []
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  Pushbox:
+    Offset: {x: 0, y: 2.5}
+    Size: {x: 0.35, y: 2.5}
+  ParryWindowFrames: 10
+  ParryWhiffRecovery: 20
+  ParryMeterGain: 10
+  ParryHitStop: 12
+  MaxMeter: 100
+  HitVoiceClips: []
+  AttackVoiceClips: []
+  ColorPalettes: []
+  PillarboxArtScale: 1.3
+  PillarboxArtOffsetY: 0

@@ -10,28 +10,50 @@ namespace FightingGame.Runtime {
     /// all physics (pushboxes) and combat (hitboxes vs hurtboxes)
     /// AFTER both players have acted each frame.
     ///
-    /// Setup: place this on a GameObject in your match scene. Attach a
-    /// PlayerInputManager component (set Join Behavior to "Join Players When
-    /// Button Is Pressed" or "Join Players Manually" for testing).
-    /// The Player Prefab on PlayerInputManager should have:
-    ///   - PlayerInput
-    ///   - InputDetector
-    ///   - PlayerController
+    /// GGXX HITSTOP MODEL:
+    ///   Hitstop is per-player, not global. On hit:
+    ///     - Attacker freezes for FrameData.GetAttackerHitstop() frames.
+    ///     - Defender freezes for FrameData.GetDefenderHitstop() (on hit)
+    ///       or FrameData.GetDefenderBlockstop() (on block) frames.
+    ///   Each player's hitstop is managed by PlayerController.ApplyHitstop().
+    ///   The game loop still ticks every frame; each PlayerController
+    ///   checks its own hitstop counter and early-returns if frozen.
+    ///
+    /// PLAYER SPAWNING:
+    ///   Unlike the menu scenes, the battle scene does NOT use a
+    ///   PlayerInputManager. Instead, MatchManager manually instantiates
+    ///   both BattlePlayer prefabs on Start and pairs each with the
+    ///   correct input device using MatchSettings.PlayerDeviceIds.
+    ///   This guarantees P1/P2 assignment is consistent with character
+    ///   select regardless of device join order.
+    ///
+    /// Setup:
+    ///   - Place on a GameObject in the battle scene (no PlayerInputManager needed).
+    ///   - Assign the BattlePlayerPrefab in the inspector.
+    ///   - The prefab must have: PlayerInput, InputDetector, PlayerController.
     /// </summary>
-    [RequireComponent(typeof(PlayerInputManager))]
     public class MatchManager : MonoBehaviour {
         // ──────────────────────────────────────
         //  INSPECTOR
         // ──────────────────────────────────────
 
-        [Header("Stage")]
-        [Tooltip("Left boundary of the stage (world X).")]
+        [Header("Player Prefab")]
+        [Tooltip("The universal battle player prefab (PlayerInput + InputDetector + PlayerController).")]
+        public GameObject BattlePlayerPrefab;
+
+        [Header("Fallback Characters (for testing without CharSelect)")]
+        [Tooltip("If MatchSettings has no character for P1, use this. Leave null to require CharSelect flow.")]
+        public CharacterData FallbackP1Character;
+        public CharacterData FallbackP2Character;
+
+        [Header("Stage (fallback — overridden by MatchSettings.SelectedStage)")]
+        [Tooltip("Left boundary. Overridden by StageData if a stage was selected.")]
         public float StageLeftBound = -6f;
 
-        [Tooltip("Right boundary of the stage (world X).")]
+        [Tooltip("Right boundary. Overridden by StageData if a stage was selected.")]
         public float StageRightBound = 6f;
 
-        [Tooltip("Ground Y position.")]
+        [Tooltip("Ground Y position. Overridden by StageData if a stage was selected.")]
         public float GroundY = 0f;
 
         [Header("Spawn Points")]
@@ -39,15 +61,16 @@ namespace FightingGame.Runtime {
         public Transform[] SpawnPoints;
 
         [Header("Round Settings")]
-        [Tooltip("Round timer in seconds (99 in 3S).")]
+        [Tooltip("Round timer in seconds (99 standard). Overridden by StageData.RoundTimeOverride if > 0.")]
         public int RoundTimeSeconds = 99;
 
-        [Header("Hit Resolution")]
-        [Tooltip("Frames of hit freeze on a normal hit (both players freeze).")]
-        public int DefaultHitStop = 8;
+        [Header("Stage Visuals")]
+        [Tooltip("Parent transform where the stage background prefab is instantiated.")]
+        public Transform BackgroundParent;
 
-        [Tooltip("Frames of hit freeze on a heavy/special hit.")]
-        public int HeavyHitStop = 12;
+        [Header("Stage Audio")]
+        [Tooltip("AudioSource used for BGM. If null, one is created automatically.")]
+        public AudioSource BGMSource;
 
         // ──────────────────────────────────────
         //  STATE
@@ -56,7 +79,6 @@ namespace FightingGame.Runtime {
         private PlayerController[] _players = new PlayerController[2];
         private InputDetector[] _detectors = new InputDetector[2];
         private int _gameFrame;
-        private int _hitStopFramesRemaining;
 
         // Per-frame hit tracking: prevents the same move from hitting
         // multiple times on a single active frame.
@@ -76,36 +98,143 @@ namespace FightingGame.Runtime {
 
         private void Start() {
             Time.fixedDeltaTime = 1f / 60f;
+            ApplyStageData();
+            SpawnPlayers();
         }
 
         /// <summary>
-        /// Called automatically by PlayerInputManager when a player joins.
-        /// Wire this in the PlayerInputManager's "Player Joined Event" in the inspector,
-        /// or use [SerializeField] and call manually.
+        /// Reads MatchSettings.SelectedStage and applies bounds, background,
+        /// and BGM. Falls back to inspector values if no stage was selected
+        /// (useful for testing the battle scene in isolation).
         /// </summary>
-        public void OnPlayerJoined(PlayerInput playerInput) {
-            int idx = playerInput.playerIndex;
-            if (idx > 1) {
-                Debug.LogWarning("[MatchManager] More than 2 players attempted to join.");
+        private void ApplyStageData() {
+            StageData stage = MatchSettings.SelectedStage;
+            if (stage == null) return;
+
+            // Apply bounds
+            StageLeftBound = stage.LeftBound;
+            StageRightBound = stage.RightBound;
+            GroundY = stage.GroundY;
+
+            // Apply round time override
+            if (stage.RoundTimeOverride > 0)
+                RoundTimeSeconds = stage.RoundTimeOverride;
+
+            // Instantiate background prefab
+            if (stage.BackgroundPrefab != null) {
+                Transform parent = BackgroundParent != null ? BackgroundParent : transform;
+                Instantiate(stage.BackgroundPrefab, parent);
+            }
+
+            // Play BGM
+            if (stage.BGM != null) {
+                if (BGMSource == null) {
+                    BGMSource = gameObject.AddComponent<AudioSource>();
+                    BGMSource.playOnAwake = false;
+                }
+
+                BGMSource.clip = stage.BGM;
+                BGMSource.loop = stage.BGMLoop;
+                BGMSource.volume = stage.BGMVolume;
+                BGMSource.Play();
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  PLAYER SPAWNING
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Manually instantiates both players and pairs each with the
+        /// input device they used in character select. No PlayerInputManager
+        /// needed — devices are assigned directly via PlayerInput API.
+        /// </summary>
+        private void SpawnPlayers() {
+            if (BattlePlayerPrefab == null) {
+                Debug.LogError("[MatchManager] BattlePlayerPrefab is not assigned!");
                 return;
             }
 
-            var controller = playerInput.GetComponent<PlayerController>();
-            var detector = playerInput.GetComponent<InputDetector>();
+            for (int idx = 0; idx < 2; idx++) {
+                // Find the device this player used in character select
+                InputDevice device = FindDeviceForPlayer(idx);
+
+                // Instantiate the prefab
+                GameObject playerObj;
+                if (device != null) {
+                    // Spawn with specific device pairing — this creates the
+                    // PlayerInput and immediately assigns the device to it.
+                    playerObj = PlayerInput.Instantiate(
+                        BattlePlayerPrefab,
+                        playerIndex: idx,
+                        pairWithDevice: device
+                    ).gameObject;
+                }
+                else {
+                    // No device tracked (testing battle scene in isolation).
+                    // Just instantiate normally — player won't have input
+                    // unless a device is available.
+                    playerObj = Instantiate(BattlePlayerPrefab);
+                    Debug.LogWarning($"[MatchManager] No tracked device for P{idx + 1}. " +
+                        "Input may not work. Go through CharSelect to pair devices.");
+                }
+
+                playerObj.name = $"BattlePlayer_P{idx + 1}";
+                SetupPlayer(idx, playerObj);
+            }
+        }
+
+        /// <summary>
+        /// Finds the InputDevice that matches the deviceId stored in
+        /// MatchSettings during character select.
+        /// </summary>
+        private InputDevice FindDeviceForPlayer(int playerIndex) {
+            int deviceId = MatchSettings.PlayerDeviceIds[playerIndex];
+            if (deviceId == 0) return null; // not set
+
+            foreach (var device in InputSystem.devices) {
+                if (device.deviceId == deviceId)
+                    return device;
+            }
+
+            Debug.LogWarning($"[MatchManager] Device ID {deviceId} for P{playerIndex + 1} " +
+                "not found. It may have been disconnected.");
+            return null;
+        }
+
+        /// <summary>
+        /// Configures a spawned player object: assigns character data,
+        /// wires input, sets facing, positions at spawn point, and
+        /// instantiates the character visual prefab.
+        /// </summary>
+        private void SetupPlayer(int idx, GameObject playerObj) {
+            var playerInput = playerObj.GetComponent<PlayerInput>();
+            var controller = playerObj.GetComponent<PlayerController>();
+            var detector = playerObj.GetComponent<InputDetector>();
 
             if (controller == null || detector == null) {
-                Debug.LogError($"[MatchManager] Player prefab missing PlayerController or InputDetector.");
+                Debug.LogError("[MatchManager] BattlePlayerPrefab missing PlayerController or InputDetector.");
                 return;
             }
 
             _players[idx] = controller;
             _detectors[idx] = detector;
 
-            // Apply character selection from character select screen
-            if (MatchSettings.SelectedCharacters[idx] != null) {
-                controller.Character = MatchSettings.SelectedCharacters[idx];
-                controller.Character.SelectedSuperArt = MatchSettings.SelectedSuperArts[idx];
-            }
+            // Wire input events (Invoke C# Events mode)
+            if (playerInput != null)
+                WireInputEvents(playerInput, detector);
+
+            // Apply character from MatchSettings, or fall back to inspector defaults
+            CharacterData character = MatchSettings.SelectedCharacters[idx];
+            if (character == null)
+                character = idx == 0 ? FallbackP1Character : FallbackP2Character;
+
+            if (character != null)
+                controller.Character = character;
+
+            Debug.Log($"[MatchManager] P{idx + 1} — Character: " +
+                $"{(controller.Character != null ? controller.Character.CharacterName : "NULL")}, " +
+                $"Device: {(playerInput != null && playerInput.devices.Count > 0 ? playerInput.devices[0].displayName : "none")}");
 
             // P1 faces right, P2 faces left
             detector.FacingSign = (idx == 0) ? 1 : -1;
@@ -120,17 +249,15 @@ namespace FightingGame.Runtime {
             if (controller.Character != null && controller.Character.CharacterPrefab != null) {
                 var visual = Instantiate(controller.Character.CharacterPrefab, controller.transform);
 
-                // Link animator and audio to the controller
                 var animator = visual.GetComponentInChildren<Animator>();
                 var audioSource = visual.GetComponentInChildren<AudioSource>();
 
-                // Add an AudioSource to the visual if one doesn't exist
                 if (audioSource == null)
                     audioSource = visual.AddComponent<AudioSource>();
 
                 controller.SetVisualReferences(animator, audioSource);
 
-                // Apply palette swap for the selected color
+                // Apply palette swap
                 int palette = MatchSettings.SelectedPalettes[idx];
                 if (controller.Character.ColorPalettes != null
                     && palette < controller.Character.ColorPalettes.Length) {
@@ -140,7 +267,45 @@ namespace FightingGame.Runtime {
                 }
             }
 
-            Debug.Log($"[MatchManager] Player {idx + 1} joined ({controller.Character.CharacterName}).");
+            Debug.Log($"[MatchManager] Player {idx + 1} ready.");
+        }
+
+        // ──────────────────────────────────────
+        //  INPUT EVENT WIRING
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Subscribes InputDetector callbacks to PlayerInput action events.
+        /// Called once per player during setup. Action names must match your
+        /// Input Action Asset's Gameplay map (Move, Punch, Kick, Slash,
+        /// HeavySlash, Dust).
+        /// </summary>
+        private void WireInputEvents(PlayerInput playerInput, InputDetector detector) {
+            var actions = playerInput.actions;
+            if (actions == null) {
+                Debug.LogError("[MatchManager] PlayerInput has no action asset assigned.");
+                return;
+            }
+
+            // Helper: find action, subscribe if it exists
+            void Bind(string actionName, System.Action<InputAction.CallbackContext> callback) {
+                var action = actions.FindAction(actionName);
+                if (action != null) {
+                    action.started += callback;
+                    action.performed += callback;
+                    action.canceled += callback;
+                }
+                else {
+                    Debug.LogWarning($"[MatchManager] Action '{actionName}' not found in input asset.");
+                }
+            }
+
+            Bind("Move", detector.OnMove);
+            Bind("Punch", detector.OnPunch);
+            Bind("Kick", detector.OnKick);
+            Bind("Slash", detector.OnSlash);
+            Bind("HeavySlash", detector.OnHeavySlash);
+            Bind("Dust", detector.OnDust);
         }
 
         // ──────────────────────────────────────
@@ -152,25 +317,23 @@ namespace FightingGame.Runtime {
 
             _gameFrame++;
 
-            // --- HIT STOP ---
-            // During hit stop, nobody acts — both players are frozen.
-            // This is the "hit freeze" effect that gives impacts weight.
-            if (_hitStopFramesRemaining > 0) {
-                _hitStopFramesRemaining--;
-                return;
-            }
-
             // --- RESET PER-FRAME HIT TRACKING ---
             _hasHitThisFrame[0] = false;
             _hasHitThisFrame[1] = false;
 
             // --- TICK BOTH PLAYERS ---
-            // Both act on the same data — no P1 advantage.
+            // Each player's GameTick checks their own hitstop counter.
+            // If in hitstop, they freeze but still buffer input.
             _players[0].GameTick();
             _players[1].GameTick();
 
             // --- PUSHBOX RESOLUTION (before hitboxes) ---
-            ResolvePushboxes();
+            // Only resolve if neither player is in hitstop (positions shouldn't
+            // change during freeze). Both frozen = skip. One frozen = skip
+            // (the non-frozen one might walk but pushbox push during hitstop
+            // looks wrong visually).
+            if (!_players[0].InHitstop && !_players[1].InHitstop)
+                ResolvePushboxes();
 
             // --- HITBOX vs HURTBOX ---
             ResolveHitboxes();
@@ -186,12 +349,6 @@ namespace FightingGame.Runtime {
         //  PUSHBOX RESOLUTION
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Prevents characters from overlapping by checking their
-        /// pushbox rects and pushing them apart equally.
-        /// Runs BEFORE hitbox checks so you can't clip through
-        /// someone and hit from behind.
-        /// </summary>
         private void ResolvePushboxes() {
             Vector2 pos0 = _players[0].transform.position;
             Vector2 pos1 = _players[1].transform.position;
@@ -201,7 +358,6 @@ namespace FightingGame.Runtime {
 
             if (!box0.Overlaps(box1)) return;
 
-            // Calculate horizontal overlap
             float overlapX;
             if (box0.center.x < box1.center.x)
                 overlapX = box0.xMax - box1.xMin;
@@ -210,7 +366,6 @@ namespace FightingGame.Runtime {
 
             if (overlapX <= 0f) return;
 
-            // Push apart equally
             float halfPush = overlapX / 2f;
             float sign = pos0.x <= pos1.x ? -1f : 1f;
 
@@ -222,10 +377,6 @@ namespace FightingGame.Runtime {
         //  HITBOX vs HURTBOX RESOLUTION
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Checks each player's active hitboxes against the opponent's
-        /// hurtboxes. Both players are checked as potential attackers.
-        /// </summary>
         private void ResolveHitboxes() {
             for (int attacker = 0; attacker < 2; attacker++) {
                 int defender = 1 - attacker;
@@ -237,23 +388,21 @@ namespace FightingGame.Runtime {
             var atk = _players[attackerIdx];
             var def = _players[defenderIdx];
 
-            // Only check if the attacker is in the Active phase of a move
+            // Only check if the attacker is in Active phase and NOT in hitstop
             if (atk.State != PlayerController.PlayerState.Active) return;
+            if (atk.InHitstop) return;
             if (atk.CurrentMove == null) return;
 
             // Don't hit again if this move already connected (single-hit moves)
             if (_lastMoveHit[attackerIdx] == atk.CurrentMove && atk.CurrentMove.HitCount <= 1)
                 return;
 
-            // Get attacker's hitboxes for the current frame of the move
             Rect[] hitRects = GetActiveHitboxRects(atk);
             if (hitRects == null || hitRects.Length == 0) return;
 
-            // Get defender's hurtboxes (default stance or move override)
             Rect[] hurtRects = GetActiveHurtboxRects(def);
             if (hurtRects == null || hurtRects.Length == 0) return;
 
-            // Check for invincibility
             HurtboxLayout defLayout = GetActiveHurtboxLayout(def);
             if (defLayout.Invincible) return;
 
@@ -273,10 +422,7 @@ namespace FightingGame.Runtime {
 
             // --- HIT CONFIRMED ---
 
-            // Check if defender is blocking
             bool blocked = IsBlocking(def, atk.CurrentMove);
-
-            // Check if defender is parrying (3S)
             bool parried = IsParrying(def, atk.CurrentMove);
 
             if (parried) {
@@ -284,17 +430,24 @@ namespace FightingGame.Runtime {
                 return;
             }
 
-            // Apply hit/block
+            // Apply hit/block to defender
             def.TakeHit(atk.CurrentMove, blocked);
+
+            // --- GGXX PER-PLAYER HITSTOP ---
+            FrameData frames = atk.CurrentMove.Frames;
+            int attackerHitstop = frames.GetAttackerHitstop();
+            int defenderHitstop = blocked
+                ? frames.GetDefenderBlockstop()
+                : frames.GetDefenderHitstop();
+
+            atk.ApplyHitstop(attackerHitstop);
+            def.ApplyHitstop(defenderHitstop);
 
             // Grant meter to attacker
             if (blocked)
                 atk.AddMeter(atk.CurrentMove.Damage.MeterGainOnHit / 2);
             else
                 atk.AddMeter(atk.CurrentMove.Damage.MeterGainOnHit);
-
-            // Apply hit stop (both players freeze)
-            _hitStopFramesRemaining = blocked ? DefaultHitStop / 2 : DefaultHitStop;
 
             // Track that this move has connected
             _lastMoveHit[attackerIdx] = atk.CurrentMove;
@@ -305,29 +458,17 @@ namespace FightingGame.Runtime {
         //  HITBOX / HURTBOX RECT EXTRACTION
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Reads the attacker's current move's HitboxFrame[] array and
-        /// returns the world-space rects that are active on the current
-        /// frame of the move.
-        /// </summary>
         private Rect[] GetActiveHitboxRects(PlayerController player) {
             MoveData move = player.CurrentMove;
             if (move.HitboxFrames == null || move.HitboxFrames.Length == 0)
                 return null;
 
-            // The move frame relative to the first active frame
-            // (HitboxFrame.StartFrame is 0-indexed from first active frame)
-            int moveFrame = player.GameFrame; // We need the internal move frame
-            // Since PlayerController doesn't expose _moveFrame directly,
-            // we derive it from the state frame counter or add an accessor.
-            // For now, we calculate based on the move's startup:
             int activeFrame = GetMoveActiveFrame(player);
             if (activeFrame < 0) return null;
 
             Vector2 pos = player.transform.position;
             int facing = player.FacingSign;
 
-            // Find which HitboxFrame entry covers this active frame
             foreach (var hbf in move.HitboxFrames) {
                 if (activeFrame >= hbf.StartFrame && activeFrame <= hbf.EndFrame) {
                     if (hbf.Hitboxes == null) continue;
@@ -342,11 +483,6 @@ namespace FightingGame.Runtime {
             return null;
         }
 
-        /// <summary>
-        /// Returns the defender's current hurtbox rects in world space.
-        /// Uses move-specific overrides if available, otherwise defaults
-        /// from CharacterData based on stance.
-        /// </summary>
         private Rect[] GetActiveHurtboxRects(PlayerController player) {
             HurtboxLayout layout = GetActiveHurtboxLayout(player);
             if (layout.Hurtboxes == null || layout.Hurtboxes.Length == 0)
@@ -361,12 +497,7 @@ namespace FightingGame.Runtime {
             return rects;
         }
 
-        /// <summary>
-        /// Determines which HurtboxLayout is active — move override
-        /// takes priority, then falls back to CharacterData defaults.
-        /// </summary>
         private HurtboxLayout GetActiveHurtboxLayout(PlayerController player) {
-            // Check move-specific hurtbox overrides
             if (player.CurrentMove != null
                 && player.CurrentMove.HurtboxOverrides != null
                 && player.CurrentMove.HurtboxOverrideFrameRanges != null) {
@@ -379,7 +510,6 @@ namespace FightingGame.Runtime {
                 }
             }
 
-            // Fall back to stance defaults
             switch (player.State) {
                 case PlayerController.PlayerState.Crouching:
                     return player.Character.CrouchingHurtbox;
@@ -393,38 +523,29 @@ namespace FightingGame.Runtime {
 
         /// <summary>
         /// Calculates which frame of the active phase the move is on.
+        /// FirstActiveFrame = Startup (startup does not include first active frame).
         /// Returns -1 if the move is not in active phase.
-        /// NOTE: This requires PlayerController to expose its internal
-        /// move frame. We add a MoveFrame accessor for this.
         /// </summary>
         private int GetMoveActiveFrame(PlayerController player) {
             if (player.CurrentMove == null) return -1;
 
-            // We need the move's internal frame counter.
-            // PlayerController exposes MoveFrame for this purpose.
             int moveFrame = player.MoveFrame;
-            int startup = player.CurrentMove.Frames.Startup;
-            int active = player.CurrentMove.Frames.Active;
+            int firstActive = player.CurrentMove.Frames.FirstActiveFrame;
+            int lastActive = player.CurrentMove.Frames.LastActiveFrame;
 
-            if (moveFrame < startup) return -1;
-            if (moveFrame >= startup + active) return -1;
+            if (moveFrame < firstActive) return -1;
+            if (moveFrame > lastActive) return -1;
 
-            return moveFrame - startup; // 0-indexed active frame
+            return moveFrame - firstActive; // 0-indexed active frame
         }
 
         // ──────────────────────────────────────
         //  BLOCKING
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Determines if the defender is blocking the incoming attack.
-        /// In 3S: hold back to block standing, hold down-back to block
-        /// crouching. Must match the attack's height.
-        /// </summary>
         private bool IsBlocking(PlayerController defender, MoveData attack) {
             var state = defender.State;
 
-            // Can't block during these states
             if (state == PlayerController.PlayerState.Startup
                 || state == PlayerController.PlayerState.Active
                 || state == PlayerController.PlayerState.Recovery
@@ -433,86 +554,51 @@ namespace FightingGame.Runtime {
                 || state == PlayerController.PlayerState.Stunned)
                 return false;
 
-            // Read the defender's current directional input
-            // We need to check if they're holding back
-            var detector = _detectors[GetPlayerIndex(defender)];
-            // The detector already flips based on facing, so "Back" = holding away
-            // We check the buffer's most recent frame
-            // For simplicity we check the defender's state:
-
             bool holdingBack = state == PlayerController.PlayerState.WalkBack;
             bool crouchBlocking = state == PlayerController.PlayerState.Crouching;
-            // Crouch blocking requires down-back, but our state machine puts
-            // the player in Crouching for any down input. A true crouch-block
-            // needs back held as well. For now, we treat Crouching as crouch-block
-            // if the attack is coming. This is a simplification you can refine.
 
             switch (attack.Height) {
                 case AttackHeight.Low:
-                    // Must block low (crouching)
                     return crouchBlocking;
-
                 case AttackHeight.Overhead:
                 case AttackHeight.High:
-                    // Must block standing
                     return holdingBack;
-
                 case AttackHeight.Mid:
-                    // Either works
                     return holdingBack || crouchBlocking;
-
                 case AttackHeight.Unblockable:
                     return false;
-
                 default:
                     return holdingBack || crouchBlocking;
             }
         }
 
         // ──────────────────────────────────────
-        //  PARRY (3S)
+        //  PARRY
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Checks if the defender is in a valid parry state.
-        /// The parry window is managed by PlayerController's TryParry —
-        /// we just check the state here.
-        /// </summary>
         private bool IsParrying(PlayerController defender, MoveData attack) {
             if (!attack.Parryable) return false;
             return defender.State == PlayerController.PlayerState.Parry;
         }
 
-        /// <summary>
-        /// Handles a successful parry: both players recover, meter is
-        /// granted to the defender, and hit stop is applied.
-        /// </summary>
         private void HandleParry(int attackerIdx, int defenderIdx, MoveData move) {
             var def = _players[defenderIdx];
 
-            // Grant meter to the defender
             def.AddMeter(def.Character.ParryMeterGain);
 
-            // Apply parry-specific hit stop
-            _hitStopFramesRemaining = def.Character.ParryHitStop;
-
-            // The defender recovers from parry (handled by their state machine)
-            // The attacker continues their move normally
+            // Parry uses the defender's character-specific parry hitstop
+            int parryHitstop = def.Character.ParryHitStop;
+            _players[attackerIdx].ApplyHitstop(parryHitstop);
+            def.ApplyHitstop(parryHitstop);
         }
 
         // ──────────────────────────────────────
         //  FACING
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Updates which direction each player faces based on
-        /// relative position. Skips during certain states
-        /// (mid-move, hitstun) to prevent weird side-switches.
-        /// </summary>
         private void UpdateFacing() {
             float delta = _players[1].transform.position.x - _players[0].transform.position.x;
 
-            // Only update facing when players are in neutral states
             for (int i = 0; i < 2; i++) {
                 var state = _players[i].State;
                 bool canFlip = state == PlayerController.PlayerState.Idle
@@ -526,6 +612,12 @@ namespace FightingGame.Runtime {
                     _detectors[i].FacingSign = delta >= 0 ? 1 : -1;
                 else
                     _detectors[i].FacingSign = delta >= 0 ? -1 : 1;
+
+                // Flip the visual to match facing direction.
+                // Scale.x = FacingSign so the sprite faces the right way.
+                Vector3 scale = _players[i].transform.localScale;
+                scale.x = Mathf.Abs(scale.x) * _detectors[i].FacingSign;
+                _players[i].transform.localScale = scale;
             }
         }
 
@@ -533,9 +625,6 @@ namespace FightingGame.Runtime {
         //  STAGE BOUNDS
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Clamps both players within the stage boundaries.
-        /// </summary>
         private void ClampToStageBounds() {
             for (int i = 0; i < 2; i++) {
                 Vector3 pos = _players[i].transform.position;

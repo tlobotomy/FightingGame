@@ -4,17 +4,23 @@ using FightingGame.Data;
 namespace FightingGame.ScriptableObjects {
     /// <summary>
     /// A single move — everything the game needs to know about a
-    /// Hadouken, cr.MK, throw, super art, etc.
+    /// Volcanic Viper, 5S, throw, Overdrive, etc.
     ///
     /// Create via:  Assets > Create > Fighting Game > Move
+    ///
+    /// GGXX CONVENTIONS:
+    ///   - Startup does NOT include the first active frame (startup 7 = hitbox on frame 8).
+    ///   - Hitstop, hitstun, and blockstun come from the AttackLevel field
+    ///     on FrameData (0–5), with optional per-move overrides.
+    ///   - Buttons are P / K / S / HS / D.
     /// </summary>
     [CreateAssetMenu(fileName = "NewMove", menuName = "Fighting Game/Move", order = 1)]
     public class MoveData : ScriptableObject {
         [Header("Identity")]
-        [Tooltip("Display name shown in command list / training mode (e.g. 'Shoryuken').")]
+        [Tooltip("Display name shown in command list / training mode (e.g. 'Volcanic Viper').")]
         public string MoveName;
 
-        [Tooltip("Short notation label (e.g. 'cr.MK', 'DP', '236P').")]
+        [Tooltip("Short notation label (e.g. '2S', '5HS', '623S').")]
         public string Notation;
 
         [Tooltip("Category — affects priority resolution and cancel rules.")]
@@ -39,7 +45,7 @@ namespace FightingGame.ScriptableObjects {
         public int InputPriority;
 
         // ──────────────────────────────────────
-        //  FRAME DATA
+        //  FRAME DATA (GGXX-style)
         // ──────────────────────────────────────
 
         [Header("Frame Data")]
@@ -79,7 +85,7 @@ namespace FightingGame.ScriptableObjects {
         [Header("Cancel Rules")]
         public CancelData Cancel;
 
-        [Tooltip("Specific moves this move can chain into (e.g. target combos). " +
+        [Tooltip("Specific moves this move can chain into (e.g. Gatling routes). " +
                  "If empty, standard cancel-level rules apply.")]
         public MoveData[] TargetComboRoutes;
 
@@ -143,22 +149,22 @@ namespace FightingGame.ScriptableObjects {
         // ──────────────────────────────────────
 
         [Header("Meter Requirements")]
-        [Tooltip("Super meter cost to perform this move (0 for non-supers).")]
+        [Tooltip("Tension meter cost to perform this move (0 for non-supers).")]
         [Min(0)] public int MeterCost;
 
-        [Tooltip("Which super art stock this uses (for 3S-style multi-stock supers). " +
+        [Tooltip("Which super art stock this uses (for multi-stock supers). " +
                  "-1 = doesn't use super stocks.")]
         public int SuperStockIndex = -1;
 
         // ──────────────────────────────────────
-        //  3S-SPECIFIC PROPERTIES
+        //  GGXX-SPECIFIC PROPERTIES
         // ──────────────────────────────────────
 
-        [Header("Third Strike Specifics")]
-        [Tooltip("Can this move be parried?")]
+        [Header("GGXX Properties")]
+        [Tooltip("Can this move be parried / Faultless Defense'd?")]
         public bool Parryable = true;
 
-        [Tooltip("Is this move an EX version (costs meter, enhanced properties)?")]
+        [Tooltip("Is this move an EX / enhanced version (costs meter)?")]
         public bool IsEX;
 
         [Tooltip("Juggle points this move costs (for juggle limit system).")]
@@ -172,7 +178,7 @@ namespace FightingGame.ScriptableObjects {
         /// Quick check: can this move cancel into `target` given the current frame?
         /// </summary>
         public bool CanCancelInto(MoveData target, int currentMoveFrame) {
-            // Target combo routes override normal cancel rules
+            // Target combo / Gatling routes override normal cancel rules
             if (TargetComboRoutes != null && TargetComboRoutes.Length > 0) {
                 foreach (var route in TargetComboRoutes)
                     if (route == target) return true;
@@ -202,10 +208,16 @@ namespace FightingGame.ScriptableObjects {
             }
         }
 
-#if UNITY_EDITOR
         /// <summary>
-        /// Auto-name the asset based on the move name for easier browsing.
+        /// Calculates frame advantage using GGXX formula.
+        /// remainingActiveFrames: active frames left AFTER the connecting frame.
         /// </summary>
+        public int CalculateAdvantage(int remainingActiveFrames, bool blocked) {
+            return AttackLevelData.CalculateAdvantage(
+                Frames.AttackLevel, remainingActiveFrames, Frames.Recovery, blocked);
+        }
+
+#if UNITY_EDITOR
         private void OnValidate() {
             if (!string.IsNullOrEmpty(MoveName) && name != MoveName) {
                 // Optional: auto-rename the asset file in the editor

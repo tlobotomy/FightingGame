@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8728dbe7b79b933489c554756d5b0407, type: 3}
+  m_Name: DyersEve
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.CharacterData
+  CharacterName: Dyers Eve
+  Description: so ultimate.
+  Portrait: {fileID: 21300000, guid: 5da48bf11cc3128448f55293f8dd588e, type: 3}
+  FullBodyArt: {fileID: 21300000, guid: 7f1f066a520190f438f7e79af419dd8a, type: 3}
+  CharacterPrefab: {fileID: 250968438874482646, guid: e3952998e5cc4b94f9f9c7ef21207e8a, type: 3}
+  Moveset: {fileID: 11400000, guid: 2f171d0f406bc004a9996b8cdae80df2, type: 2}
+  MaxHealth: 1200
+  MaxStun: 72
+  StunRecoveryRate: 1
+  StunDuration: 180
+  WalkForwardSpeed: 0.04
+  WalkBackwardSpeed: 0.03
+  JumpForwardSpeed: 0.045
+  JumpHeight: 0.12
+  Gravity: 0.008
+  PreJumpFrames: 4
+  JumpLandingFrames: 2
+  DashDuration: 18
+  DashDistance: 1.5
+  BackDashDuration: 22
+  BackDashDistance: 1.2
+  BackDashInvincibleFrames: 5
+  DefenseModifier: 1
+  BlockPushbackModifier: 1
+  StandingHurtbox:
+    Label: Standing Hurtbox
+    Hurtboxes:
+    - Offset: {x: 0, y: 2.6}
+      Size: {x: 0.7, y: 1}
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  CrouchingHurtbox:
+    Label: Crouching Hurtbox
+    Hurtboxes:
+    - Offset: {x: 0, y: 2.6}
+      Size: {x: 0.7, y: 0.5}
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  AirborneHurtbox:
+    Label: 
+    Hurtboxes: []
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
+  Pushbox:
+    Offset: {x: 0, y: 0}
+    Size: {x: 0, y: 0}
+  ParryWindowFrames: 10
+  ParryWhiffRecovery: 20
+  ParryMeterGain: 10
+  ParryHitStop: 12
+  MaxMeter: 100
+  HitVoiceClips: []
+  AttackVoiceClips: []
+  ColorPalettes: []
+  PillarboxArtScale: 0.8
+  PillarboxArtOffsetY: 0

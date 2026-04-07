@@ -36,6 +36,8 @@ namespace FightingGame.Runtime {
 
 #if UNITY_EDITOR
         private void OnDrawGizmos() {
+            if (_controller == null)
+                _controller = GetComponent<PlayerController>();
             if (_controller == null || _controller.Character == null) return;
 
             Vector2 pos = transform.position;

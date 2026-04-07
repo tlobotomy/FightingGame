@@ -29,16 +29,20 @@ namespace FightingGame.Data {
     }
 
     /// <summary>
-    /// The six-button layout, matching Third Strike.
+    /// Guilty Gear XX 4+1 button layout.
+    /// P  = Punch
+    /// K  = Kick
+    /// S  = Slash
+    /// HS = Heavy Slash
+    /// D  = Dust (universal overhead / launcher)
     /// </summary>
     public enum ButtonInput {
         None,
-        LightPunch,
-        MediumPunch,
-        HeavyPunch,
-        LightKick,
-        MediumKick,
-        HeavyKick
+        Punch,
+        Kick,
+        Slash,
+        HeavySlash,
+        Dust
     }
 
     /// <summary>

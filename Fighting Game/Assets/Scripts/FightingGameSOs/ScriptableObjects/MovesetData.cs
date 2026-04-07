@@ -6,6 +6,9 @@ namespace FightingGame.ScriptableObjects {
     /// A complete moveset for one character. Groups all moves by category
     /// and provides fast lookup for the input parser.
     ///
+    /// GGXX layout: 4 main buttons (P / K / S / HS) + Dust (universal).
+    /// Each stance has 4 normals. Dust is shared across stances.
+    ///
     /// Create via:  Assets > Create > Fighting Game > Moveset
     /// </summary>
     [CreateAssetMenu(fileName = "NewMoveset", menuName = "Fighting Game/Moveset", order = 2)]
@@ -14,39 +17,59 @@ namespace FightingGame.ScriptableObjects {
         public string MovesetName;
 
         // ──────────────────────────────────────
-        //  NORMALS
+        //  NORMALS  (GGXX 4-button: P / K / S / HS)
         // ──────────────────────────────────────
 
-        [Header("Standing Normals")]
-        public MoveData StandLightPunch;
-        public MoveData StandMediumPunch;
-        public MoveData StandHeavyPunch;
-        public MoveData StandLightKick;
-        public MoveData StandMediumKick;
-        public MoveData StandHeavyKick;
+        [Header("Standing Normals (5P, 5K, 5S, 5HS)")]
+        public MoveData StandPunch;
+        public MoveData StandKick;
+        public MoveData StandSlash;
+        public MoveData StandHeavySlash;
 
-        [Header("Crouching Normals")]
-        public MoveData CrouchLightPunch;
-        public MoveData CrouchMediumPunch;
-        public MoveData CrouchHeavyPunch;
-        public MoveData CrouchLightKick;
-        public MoveData CrouchMediumKick;
-        public MoveData CrouchHeavyKick;
+        [Header("Crouching Normals (2P, 2K, 2S, 2HS)")]
+        public MoveData CrouchPunch;
+        public MoveData CrouchKick;
+        public MoveData CrouchSlash;
+        public MoveData CrouchHeavySlash;
 
-        [Header("Jumping Normals")]
-        public MoveData JumpLightPunch;
-        public MoveData JumpMediumPunch;
-        public MoveData JumpHeavyPunch;
-        public MoveData JumpLightKick;
-        public MoveData JumpMediumKick;
-        public MoveData JumpHeavyKick;
+        [Header("Jumping Normals (j.P, j.K, j.S, j.HS)")]
+        public MoveData JumpPunch;
+        public MoveData JumpKick;
+        public MoveData JumpSlash;
+        public MoveData JumpHeavySlash;
+
+        // ──────────────────────────────────────
+        //  DUST (universal overhead / launcher)
+        // ──────────────────────────────────────
+
+        [Header("Dust (5D — universal overhead)")]
+        [Tooltip("Standing Dust attack. In GGXX this is a universal overhead / launcher.")]
+        public MoveData StandDust;
+
+        [Tooltip("Crouching Dust (2D — sweep in some GG games).")]
+        public MoveData CrouchDust;
+
+        [Tooltip("Jumping Dust (j.D).")]
+        public MoveData JumpDust;
+
+        // ──────────────────────────────────────
+        //  CLOSE NORMALS (optional — some GG chars
+        //  have proximity normals like close 5S)
+        // ──────────────────────────────────────
+
+        [Header("Close Normals (optional proximity variants)")]
+        [Tooltip("Close standing Slash (f.S or cl.S depending on the game version).")]
+        public MoveData CloseSlash;
+
+        [Tooltip("Close standing Heavy Slash (optional).")]
+        public MoveData CloseHeavySlash;
 
         // ──────────────────────────────────────
         //  COMMAND NORMALS & UNIQUE ATTACKS
         // ──────────────────────────────────────
 
         [Header("Command Normals / Unique Attacks")]
-        [Tooltip("e.g. Ryu's f+HP (Collarbone Breaker). Direction + button, no motion.")]
+        [Tooltip("e.g. 6P (anti-air punch), 6K, 6HS. Direction + button, no motion.")]
         public MoveData[] CommandNormals;
 
         // ──────────────────────────────────────
@@ -58,17 +81,17 @@ namespace FightingGame.ScriptableObjects {
         public MoveData[] Specials;
 
         [Header("EX Specials")]
-        [Tooltip("EX versions (two buttons). Listed separately for clarity, " +
+        [Tooltip("EX/Force-Break versions (cost meter). Listed separately for clarity, " +
                  "but they participate in the same priority sort.")]
         public MoveData[] EXSpecials;
 
         // ──────────────────────────────────────
-        //  SUPERS
+        //  SUPERS / OVERDRIVES
         // ──────────────────────────────────────
 
-        [Header("Super Arts")]
-        [Tooltip("In 3S, each character picks one of 3 super arts. " +
-                 "List all options here; the selected index is on CharacterData.")]
+        [Header("Super Arts / Overdrives")]
+        [Tooltip("All supers/Overdrives for this character. " +
+                 "All are available at all times — no selection step.")]
         public SuperArtSlot[] SuperArts;
 
         // ──────────────────────────────────────
@@ -76,25 +99,24 @@ namespace FightingGame.ScriptableObjects {
         // ──────────────────────────────────────
 
         [Header("Throws")]
+        [Tooltip("Forward throw (4/6 + HS in GGXX, or dedicated throw button).")]
         public MoveData ForwardThrow;
         public MoveData BackThrow;
 
         [Header("Universal Mechanics")]
-        [Tooltip("Forward dash.")]
-        public MoveData Dash;
+        // NOTE: Dashes do NOT use MoveData. They are parameter-driven
+        // from CharacterData (DashDuration, DashDistance, etc.) and
+        // triggered by double-tap forward/back in PlayerController.
 
-        [Tooltip("Back dash.")]
-        public MoveData BackDash;
-
-        [Tooltip("Taunt (3S: Ken/Q taunts grant buffs).")]
+        [Tooltip("Taunt / Respect (triggered by HS+D).")]
         public MoveData Taunt;
 
         // ──────────────────────────────────────
-        //  TARGET COMBOS
+        //  GATLING / TARGET COMBOS
         // ──────────────────────────────────────
 
-        [Header("Target Combos")]
-        [Tooltip("Pre-defined chain routes (e.g. Dudley's f+MK > MK > HK). " +
+        [Header("Gatling Routes / Target Combos")]
+        [Tooltip("Pre-defined chain routes (e.g. P > K > S > HS Gatling table). " +
                  "Each entry is a full sequence from starter to ender.")]
         public TargetCombo[] TargetCombos;
 
@@ -121,36 +143,33 @@ namespace FightingGame.ScriptableObjects {
 
         private MoveData GetStandingNormal(ButtonInput btn) {
             switch (btn) {
-                case ButtonInput.LightPunch: return StandLightPunch;
-                case ButtonInput.MediumPunch: return StandMediumPunch;
-                case ButtonInput.HeavyPunch: return StandHeavyPunch;
-                case ButtonInput.LightKick: return StandLightKick;
-                case ButtonInput.MediumKick: return StandMediumKick;
-                case ButtonInput.HeavyKick: return StandHeavyKick;
+                case ButtonInput.Punch: return StandPunch;
+                case ButtonInput.Kick: return StandKick;
+                case ButtonInput.Slash: return StandSlash;
+                case ButtonInput.HeavySlash: return StandHeavySlash;
+                case ButtonInput.Dust: return StandDust;
                 default: return null;
             }
         }
 
         private MoveData GetCrouchingNormal(ButtonInput btn) {
             switch (btn) {
-                case ButtonInput.LightPunch: return CrouchLightPunch;
-                case ButtonInput.MediumPunch: return CrouchMediumPunch;
-                case ButtonInput.HeavyPunch: return CrouchHeavyPunch;
-                case ButtonInput.LightKick: return CrouchLightKick;
-                case ButtonInput.MediumKick: return CrouchMediumKick;
-                case ButtonInput.HeavyKick: return CrouchHeavyKick;
+                case ButtonInput.Punch: return CrouchPunch;
+                case ButtonInput.Kick: return CrouchKick;
+                case ButtonInput.Slash: return CrouchSlash;
+                case ButtonInput.HeavySlash: return CrouchHeavySlash;
+                case ButtonInput.Dust: return CrouchDust;
                 default: return null;
             }
         }
 
         private MoveData GetJumpingNormal(ButtonInput btn) {
             switch (btn) {
-                case ButtonInput.LightPunch: return JumpLightPunch;
-                case ButtonInput.MediumPunch: return JumpMediumPunch;
-                case ButtonInput.HeavyPunch: return JumpHeavyPunch;
-                case ButtonInput.LightKick: return JumpLightKick;
-                case ButtonInput.MediumKick: return JumpMediumKick;
-                case ButtonInput.HeavyKick: return JumpHeavyKick;
+                case ButtonInput.Punch: return JumpPunch;
+                case ButtonInput.Kick: return JumpKick;
+                case ButtonInput.Slash: return JumpSlash;
+                case ButtonInput.HeavySlash: return JumpHeavySlash;
+                case ButtonInput.Dust: return JumpDust;
                 default: return null;
             }
         }
@@ -175,8 +194,8 @@ namespace FightingGame.ScriptableObjects {
     }
 
     /// <summary>
-    /// A super art slot — 3S lets you pick one of three,
-    /// each with its own meter length and stock count.
+    /// A super art / Overdrive slot.
+    /// All supers are available simultaneously — no selection mechanic.
     /// </summary>
     [System.Serializable]
     public struct SuperArtSlot {
@@ -186,7 +205,7 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("How many meter stocks this super art provides.")]
         [Min(1)] public int MaxStocks;
 
-        [Tooltip("Meter units per stock (e.g. SA1 might be 1 long bar, SA3 might be 3 short bars).")]
+        [Tooltip("Meter units per stock.")]
         [Min(1)] public int MeterPerStock;
 
         [Tooltip("Meter cost per use (in units, not stocks).")]
@@ -195,14 +214,14 @@ namespace FightingGame.ScriptableObjects {
 
     /// <summary>
     /// A fixed chain of moves that bypasses normal cancel rules
-    /// (e.g. Dudley's target combos).
+    /// (Gatling combos, target combos).
     /// </summary>
     [System.Serializable]
     public struct TargetCombo {
         public string Name;
 
         [Tooltip("Ordered sequence of moves. Each move can cancel into the next " +
-                 "regardless of cancel level.")]
+                 "regardless of cancel level (Gatling route).")]
         public MoveData[] Sequence;
     }
 }

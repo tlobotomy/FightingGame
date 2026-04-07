@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b191f20531b551849b9f9695a654cc45, type: 3}
+  m_Name: DyersEve_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
+  MovesetName: Dyers Eve Moveset
+  StandPunch: {fileID: 11400000, guid: 8e4fe9c538f211441acf9100dc30b22d, type: 2}
+  StandKick: {fileID: 11400000, guid: 94c79bff0de750747b4c0693b0870bff, type: 2}
+  StandSlash: {fileID: 11400000, guid: 37c91cd9ec50b6d47a67b2953a11560a, type: 2}
+  StandHeavySlash: {fileID: 11400000, guid: c7201e4665fcbb2439521dd948fdd299, type: 2}
+  CrouchPunch: {fileID: 11400000, guid: 535ea1bdca40d1d4783230ba2e1bbfc9, type: 2}
+  CrouchKick: {fileID: 11400000, guid: 20c046bdb4c9db9438536ab16ad6275d, type: 2}
+  CrouchSlash: {fileID: 11400000, guid: 5c57907cc2e426e488b108622d537946, type: 2}
+  CrouchHeavySlash: {fileID: 11400000, guid: ed89027131482ca4ca691fea4e75796d, type: 2}
+  JumpPunch: {fileID: 11400000, guid: 6ebcd9e6a1058aa48a10ed9318e31ec3, type: 2}
+  JumpKick: {fileID: 11400000, guid: db25fb1a9eb37a24ebedb00865a85612, type: 2}
+  JumpSlash: {fileID: 11400000, guid: 32d0cf87367ad344388db19aa3223cb6, type: 2}
+  JumpHeavySlash: {fileID: 11400000, guid: a0a9e81986653f240ab846b411e1eef2, type: 2}
+  StandDust: {fileID: 11400000, guid: b472fb3474b2ce742938ee6b29f902b2, type: 2}
+  CrouchDust: {fileID: 11400000, guid: 122eae9aabda7614ba1424684e1e2c3d, type: 2}
+  JumpDust: {fileID: 11400000, guid: 307249a6b9358644c9771388f4fb9f18, type: 2}
+  CloseSlash: {fileID: 0}
+  CloseHeavySlash: {fileID: 0}
+  CommandNormals: []
+  Specials: []
+  EXSpecials: []
+  SuperArts: []
+  ForwardThrow: {fileID: 11400000, guid: d6e29cd248e03314cacbcc3cdedf6494, type: 2}
+  BackThrow: {fileID: 11400000, guid: c27bceecfadeda848889fb0019057059, type: 2}
+  Dash: {fileID: 0}
+  BackDash: {fileID: 0}
+  Taunt: {fileID: 0}
+  TargetCombos: []

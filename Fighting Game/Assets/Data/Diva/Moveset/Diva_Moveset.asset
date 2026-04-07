@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b191f20531b551849b9f9695a654cc45, type: 3}
+  m_Name: Diva_Moveset
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
+  MovesetName: Diva Moveset
+  StandPunch: {fileID: 11400000, guid: 9acd3c27ca8c530418053f38cfa63ad8, type: 2}
+  StandKick: {fileID: 0}
+  StandSlash: {fileID: 0}
+  StandHeavySlash: {fileID: 0}
+  CrouchPunch: {fileID: 0}
+  CrouchKick: {fileID: 0}
+  CrouchSlash: {fileID: 0}
+  CrouchHeavySlash: {fileID: 0}
+  JumpPunch: {fileID: 0}
+  JumpKick: {fileID: 0}
+  JumpSlash: {fileID: 0}
+  JumpHeavySlash: {fileID: 0}
+  StandDust: {fileID: 0}
+  CrouchDust: {fileID: 0}
+  JumpDust: {fileID: 0}
+  CloseSlash: {fileID: 0}
+  CloseHeavySlash: {fileID: 0}
+  CommandNormals: []
+  Specials: []
+  EXSpecials: []
+  SuperArts: []
+  ForwardThrow: {fileID: 0}
+  BackThrow: {fileID: 0}
+  Dash: {fileID: 0}
+  BackDash: {fileID: 0}
+  Taunt: {fileID: 0}
+  TargetCombos: []

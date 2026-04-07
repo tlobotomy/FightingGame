@@ -57,7 +57,107 @@ MonoBehaviour:
   m_ControlsChangedEvent:
     m_PersistentCalls:
       m_Calls: []
-  m_ActionEvents: []
+  m_ActionEvents:
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 525a0337-547f-4a35-9622-720b09db2fe7
+    m_ActionName: 'Player/Move[/XInputControllerWindows/leftStick,/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow,/.
+      UNIVERSAL ARCADE FIGHTSTICK F500 ELITE/stick,/XInputControllerWindows/leftStick/up,/XInputControllerWindows/leftStick/down,/XInputControllerWindows/leftStick/left,/XInputControllerWindows/leftStick/right]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 3d71992e-cf6c-4ef7-875e-b804e4da1853
+    m_ActionName: 'Player/Look[/XInputControllerWindows/rightStick,/Mouse/delta,/Pen/delta]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 4e4c229f-ac2f-4929-879f-e0aa3d6ee9d0
+    m_ActionName: 'Player/Interact[/Keyboard/e,/XInputControllerWindows/buttonNorth]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 29914bde-f082-4cae-96a0-221ae90c442f
+    m_ActionName: 'Player/Crouch[/XInputControllerWindows/buttonEast,/Keyboard/c]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: e77f4ea0-22ac-41c4-b4ac-ad0197bb7a42
+    m_ActionName: 'Player/Jump[/Keyboard/space,/XInputControllerWindows/buttonSouth]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 082f1db7-b368-4767-a3c6-4d05659cc05a
+    m_ActionName: 'Player/Previous[/Keyboard/1,/XInputControllerWindows/dpad/left]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 0ae25388-434c-4975-a00e-0065831d7735
+    m_ActionName: 'Player/Next[/Keyboard/2,/XInputControllerWindows/dpad/right]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 91ea47cf-2c17-4c6d-a530-06132542af8e
+    m_ActionName: 'Player/Sprint[/Keyboard/leftShift,/XInputControllerWindows/leftStickPress]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 1b495a49-e074-40b6-9108-3a29aaff3237
+    m_ActionName: 'Player/Punch[/XInputControllerWindows/buttonSouth]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 66e13959-ce2d-4b70-abca-b40fcfd1fdc4
+    m_ActionName: 'Player/Kick[/XInputControllerWindows/buttonWest]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 20be5d7c-7e17-486a-a714-dc045442c382
+    m_ActionName: 'Player/Slash[/XInputControllerWindows/buttonNorth]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 00aa4f3d-9ae6-4b9f-8f82-61895d161736
+    m_ActionName: 'Player/HeavySlash[/XInputControllerWindows/rightShoulder]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 5bc17130-a954-4972-afd0-468ee4d250f8
+    m_ActionName: 'Player/Dust[/XInputControllerWindows/rightStick/down]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: e105e391-65fd-4ff3-9ae9-b5ce70e95ae7
+    m_ActionName: 'UI/Navigate[/XInputControllerWindows/leftStick/up,/XInputControllerWindows/rightStick/up,/XInputControllerWindows/leftStick/down,/XInputControllerWindows/rightStick/down,/XInputControllerWindows/leftStick/left,/XInputControllerWindows/rightStick/left,/XInputControllerWindows/leftStick/right,/XInputControllerWindows/rightStick/right,/XInputControllerWindows/dpad,/.
+      UNIVERSAL ARCADE FIGHTSTICK F500 ELITE/stick/up,/. UNIVERSAL ARCADE FIGHTSTICK
+      F500 ELITE/stick/down,/. UNIVERSAL ARCADE FIGHTSTICK F500 ELITE/stick/left,/.
+      UNIVERSAL ARCADE FIGHTSTICK F500 ELITE/stick/right,/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 2adf39e9-c588-40d0-a25f-f1b01bb1ebb1
+    m_ActionName: 'UI/Submit[/Keyboard/enter,/XInputControllerWindows/buttonSouth]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: f5e97cae-a34d-4b15-8791-78e4c1609957
+    m_ActionName: 'UI/Cancel[/Keyboard/escape,/XInputControllerWindows/buttonEast]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: d485bcc5-3c4f-409b-ac7b-98c3e3c42b92
+    m_ActionName: 'UI/Point[/Mouse/position,/Pen/position]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 573afa3b-acb6-4f84-8d04-ed8077577bc3
+    m_ActionName: 'UI/Click[/Mouse/leftButton,/Pen/tip]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 87a14d09-2984-45d2-b1ae-8a55526bb7e2
+    m_ActionName: 'UI/RightClick[/Mouse/rightButton]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 8b344915-71ec-41ba-b1ec-1879897a8ff5
+    m_ActionName: 'UI/MiddleClick[/Mouse/middleButton]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 84e297e5-01d0-409a-bed7-ae31756aa361
+    m_ActionName: 'UI/ScrollWheel[/Mouse/scroll]'
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 8a3cc73d-e8c7-49bf-bbc4-f6e578eb5c84
+    m_ActionName: UI/TrackedDevicePosition
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 2fcaddf8-23f5-4aad-a434-285333bff190
+    m_ActionName: UI/TrackedDeviceOrientation
+  - m_PersistentCalls:
+      m_Calls: []
+    m_ActionId: 9fead2a3-2c12-4fc9-a899-aff322bfd768
+    m_ActionName: 'UI/Confirm[/XInputControllerWindows/buttonSouth]'
   m_NeverAutoSwitchControlSchemes: 1
   m_DefaultControlScheme: 
   m_DefaultActionMap: e7ac06cc-8f55-47bd-9b56-0ca0a133fb88

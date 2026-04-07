@@ -42,10 +42,6 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("The full moveset for this character.")]
         public MovesetData Moveset;
 
-        [Tooltip("Which super art is selected (index into Moveset.SuperArts). " +
-                 "In 3S this is chosen at character select.")]
-        [Min(0)] public int SelectedSuperArt;
-
         // ──────────────────────────────────────
         //  STATS
         // ──────────────────────────────────────
@@ -147,16 +143,15 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("Frames of hit freeze on successful parry.")]
         [Min(0)] public int ParryHitStop = 12;
 
+        [Header("Meter")]
+        [Tooltip("Total tension/super meter capacity for this character.")]
+        [Min(1)] public int MaxMeter = 100;
+
         /// <summary>
-        /// Total meter capacity (depends on selected super art).
+        /// Total meter capacity. All supers draw from the same meter pool.
         /// </summary>
         public int GetTotalMeterCapacity() {
-            if (Moveset == null || Moveset.SuperArts == null
-                || SelectedSuperArt >= Moveset.SuperArts.Length)
-                return 100;
-
-            var sa = Moveset.SuperArts[SelectedSuperArt];
-            return sa.MaxStocks * sa.MeterPerStock;
+            return MaxMeter;
         }
 
         // ──────────────────────────────────────
@@ -171,18 +166,19 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("Alternate color palettes (3S has ~6 per character).")]
         public Material[] ColorPalettes;
 
+        [Header("Pillarbox Art Settings")]
+        [Tooltip("Scale multiplier for this character's pillarbox art (1 = default, 1.5 = 50% bigger). " +
+                 "Use this to make smaller characters fill more of the pillarbox.")]
+        public float PillarboxArtScale = 1f;
+
+        [Tooltip("Vertical offset for the pillarbox art (positive = up). " +
+                 "Use this to reposition characters who sit too high or low.")]
+        public float PillarboxArtOffsetY = 0f;
+
         // ──────────────────────────────────────
         //  VALIDATION
         // ──────────────────────────────────────
 
-#if UNITY_EDITOR
-        private void OnValidate() {
-            if (Moveset != null && Moveset.SuperArts != null) {
-                SelectedSuperArt = Mathf.Clamp(
-                    SelectedSuperArt, 0,
-                    Mathf.Max(0, Moveset.SuperArts.Length - 1));
-            }
-        }
-#endif
+        // No editor validation needed — all supers are always available.
     }
 }

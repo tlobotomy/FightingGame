@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2140dec1d4fcad4cbac2196340a04a7, type: 3}
+  m_Name: Laboratory
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.StageData
+  StageName: Laboratory
+  Description: so eeevile
+  PreviewImage: {fileID: 21300000, guid: 02a1e884e84637a43a3e9f479a13fab3, type: 3}
+  BackgroundPrefab: {fileID: 0}
+  LeftBound: -235
+  RightBound: 235
+  GroundY: -522
+  BGM: {fileID: 0}
+  BGMVolume: 1
+  BGMLoop: 1
+  DamageMultiplier: 1
+  RoundTimeOverride: 0
+  GravityScale: 1

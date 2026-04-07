@@ -13,8 +13,7 @@ namespace FightingGame.Runtime {
     ///   1. Players join by pressing a button on their device
     ///   2. Each navigates the roster grid with their stick/dpad
     ///   3. A button press locks in the character
-    ///   4. Super art selection appears for each locked player
-    ///   5. Once both are locked with super arts chosen, transition to battle
+    ///   4. Once both are locked, transition to stage select
     ///
     /// Setup:
     ///   - Attach to a GameObject alongside a PlayerInputManager
@@ -43,6 +42,13 @@ namespace FightingGame.Runtime {
         public TMP_Text P1NameLabel;
         public TMP_Text P2NameLabel;
 
+        [Header("UI — Full Body Art")]
+        [Tooltip("Large full-body character art display for P1 (uses CharacterData.FullBodyArt).")]
+        public Image P1FullBody;
+
+        [Tooltip("Large full-body character art display for P2.")]
+        public Image P2FullBody;
+
         [Header("UI — Cursors")]
         [Tooltip("Parent transform whose children are the grid slots. " +
                  "Cursors will position themselves over the selected slot.")]
@@ -54,14 +60,6 @@ namespace FightingGame.Runtime {
         [Tooltip("Visual cursor overlay for P2.")]
         public RectTransform P2Cursor;
 
-        [Header("UI — Super Art Selection")]
-        [Tooltip("Panel that appears when a player picks a character. " +
-                 "Should contain 3 child buttons/labels for the super arts.")]
-        public GameObject P1SuperArtPanel;
-        public GameObject P2SuperArtPanel;
-        public TMP_Text[] P1SuperArtLabels;
-        public TMP_Text[] P2SuperArtLabels;
-
         [Header("UI — Ready")]
         public GameObject ReadyBanner;
 
@@ -70,8 +68,8 @@ namespace FightingGame.Runtime {
         public GameObject JoinPrompt;
 
         [Header("Scene Transition")]
-        [Tooltip("Name of the battle scene to load.")]
-        public string BattleSceneName = "BattleScene";
+        [Tooltip("Name of the stage select scene to load after both players lock in.")]
+        public string StageSelectSceneName = "StageSelectScene";
 
         [Tooltip("Delay in seconds after both players lock in before loading.")]
         public float TransitionDelay = 1.5f;
@@ -87,11 +85,10 @@ namespace FightingGame.Runtime {
         //  STATE
         // ──────────────────────────────────────
 
-        private enum SelectPhase { NotJoined, Browsing, SuperArtSelect, Locked }
+        private enum SelectPhase { NotJoined, Browsing, Locked }
 
         private int[] _cursorIndex = new int[2];
         private SelectPhase[] _phase = new SelectPhase[2];
-        private int[] _superArtCursor = new int[2];
         private CharacterData[] _selected = new CharacterData[2];
 
         private bool _transitioning;
@@ -104,6 +101,17 @@ namespace FightingGame.Runtime {
         //  LIFECYCLE
         // ──────────────────────────────────────
 
+        private void Awake() {
+            // Log all connected devices so we can diagnose ghost issues
+            Debug.Log("[CharacterSelect] === Connected Devices ===");
+            foreach (var device in InputSystem.devices) {
+                Debug.Log($"  [{device.deviceId}] {device.displayName} | " +
+                    $"layout={device.layout} | interface={device.description.interfaceName} | " +
+                    $"product={device.description.product} | isGamepad={device is Gamepad}");
+            }
+            Debug.Log("[CharacterSelect] === End Devices ===");
+        }
+
         private void Start() {
             if (Roster == null || Roster.Length == 0) {
                 Debug.LogError("[CharacterSelect] No characters in Roster!");
@@ -113,8 +121,6 @@ namespace FightingGame.Runtime {
             _phase[0] = SelectPhase.NotJoined;
             _phase[1] = SelectPhase.NotJoined;
 
-            if (P1SuperArtPanel != null) P1SuperArtPanel.SetActive(false);
-            if (P2SuperArtPanel != null) P2SuperArtPanel.SetActive(false);
             if (ReadyBanner != null) ReadyBanner.SetActive(false);
             if (JoinPrompt != null) JoinPrompt.SetActive(true);
 
@@ -134,6 +140,21 @@ namespace FightingGame.Runtime {
         /// CharacterSelectPlayer component.
         /// </summary>
         public void OnPlayerJoined(PlayerInput playerInput) {
+            // Log what device triggered this join
+            string deviceInfo = playerInput.devices.Count > 0
+                ? $"{playerInput.devices[0].displayName} (layout={playerInput.devices[0].layout}, id={playerInput.devices[0].deviceId})"
+                : "NO DEVICE";
+            Debug.Log($"[CharacterSelect] OnPlayerJoined called — playerIndex={playerInput.playerIndex}, device={deviceInfo}");
+
+            // Reject joins from non-Gamepad devices (HID ghosts).
+            // The real Gamepad representation of the fightstick will join
+            // separately on the same button press.
+            if (playerInput.devices.Count > 0 && playerInput.devices[0] is not Gamepad) {
+                Debug.Log($"[CharacterSelect] REJECTED non-Gamepad join: {deviceInfo}");
+                Destroy(playerInput.gameObject);
+                return;
+            }
+
             int idx = playerInput.playerIndex;
             if (idx > 1) {
                 Debug.LogWarning("[CharacterSelect] More than 2 players attempted to join.");
@@ -151,6 +172,11 @@ namespace FightingGame.Runtime {
             // Register this handler and link it back to us
             _inputHandlers[idx] = handler;
             handler.Initialize(this, idx);
+
+            // Track which physical device this player used so the
+            // battle scene can maintain consistent P1/P2 mapping.
+            if (playerInput.devices.Count > 0)
+                MatchSettings.PlayerDeviceIds[idx] = playerInput.devices[0].deviceId;
 
             _phase[idx] = SelectPhase.Browsing;
             _playersJoined++;
@@ -191,14 +217,8 @@ namespace FightingGame.Runtime {
             if (playerIndex < 0 || playerIndex > 1) return;
             if (_transitioning) return;
 
-            switch (_phase[playerIndex]) {
-                case SelectPhase.Browsing:
-                    ConfirmCharacter(playerIndex);
-                    break;
-                case SelectPhase.SuperArtSelect:
-                    ConfirmSuperArt(playerIndex);
-                    break;
-            }
+            if (_phase[playerIndex] == SelectPhase.Browsing)
+                ConfirmCharacter(playerIndex);
         }
 
         /// <summary>
@@ -208,14 +228,8 @@ namespace FightingGame.Runtime {
             if (playerIndex < 0 || playerIndex > 1) return;
             if (_transitioning) return;
 
-            switch (_phase[playerIndex]) {
-                case SelectPhase.SuperArtSelect:
-                    CancelSuperArt(playerIndex);
-                    break;
-                case SelectPhase.Locked:
-                    CancelLock(playerIndex);
-                    break;
-            }
+            if (_phase[playerIndex] == SelectPhase.Locked)
+                CancelLock(playerIndex);
         }
 
         // ──────────────────────────────────────
@@ -252,18 +266,6 @@ namespace FightingGame.Runtime {
 
                 _stickConsumed[player] = true;
             }
-            else if (_phase[player] == SelectPhase.SuperArtSelect) {
-                var superArts = _selected[player].Moveset.SuperArts;
-                int dir = stick.x > 0.5f ? 1 : stick.x < -0.5f ? -1 : 0;
-
-                if (dir != 0) {
-                    _superArtCursor[player] = Mathf.Clamp(
-                        _superArtCursor[player] + dir, 0, superArts.Length - 1);
-                    PlaySound(CursorMoveSound);
-                    UpdateSuperArtUI(player);
-                    _stickConsumed[player] = true;
-                }
-            }
         }
 
         // ──────────────────────────────────────
@@ -273,57 +275,16 @@ namespace FightingGame.Runtime {
         private void ConfirmCharacter(int player) {
             _selected[player] = Roster[_cursorIndex[player]];
             MatchSettings.SelectedCharacters[player] = _selected[player];
-            PlaySound(ConfirmSound);
-
-            // Check if this character has super arts to choose from
-            if (_selected[player].Moveset != null
-                && _selected[player].Moveset.SuperArts != null
-                && _selected[player].Moveset.SuperArts.Length > 1) {
-                _phase[player] = SelectPhase.SuperArtSelect;
-                _superArtCursor[player] = 0;
-                ShowSuperArtPanel(player);
-            }
-            else {
-                // Only one or no super arts — skip selection
-                _phase[player] = SelectPhase.Locked;
-                MatchSettings.SelectedSuperArts[player] = 0;
-                CheckBothReady();
-            }
-
-            UpdateUI(player);
-        }
-
-        private void ConfirmSuperArt(int player) {
-            MatchSettings.SelectedSuperArts[player] = _superArtCursor[player];
             _phase[player] = SelectPhase.Locked;
-            HideSuperArtPanel(player);
             PlaySound(ConfirmSound);
             UpdateUI(player);
             CheckBothReady();
         }
 
-        private void CancelSuperArt(int player) {
+        private void CancelLock(int player) {
             _phase[player] = SelectPhase.Browsing;
             _selected[player] = null;
             MatchSettings.SelectedCharacters[player] = null;
-            HideSuperArtPanel(player);
-            PlaySound(CancelSound);
-            UpdateUI(player);
-        }
-
-        private void CancelLock(int player) {
-            // If they had super art selection, go back there
-            if (_selected[player].Moveset != null
-                && _selected[player].Moveset.SuperArts != null
-                && _selected[player].Moveset.SuperArts.Length > 1) {
-                _phase[player] = SelectPhase.SuperArtSelect;
-                ShowSuperArtPanel(player);
-            }
-            else {
-                _phase[player] = SelectPhase.Browsing;
-                _selected[player] = null;
-                MatchSettings.SelectedCharacters[player] = null;
-            }
 
             PlaySound(CancelSound);
             if (ReadyBanner != null) ReadyBanner.SetActive(false);
@@ -351,18 +312,18 @@ namespace FightingGame.Runtime {
             if (ReadyBanner != null) ReadyBanner.SetActive(true);
 
             _transitioning = true;
-            Invoke(nameof(LoadBattleScene), TransitionDelay);
+            Invoke(nameof(LoadStageSelect), TransitionDelay);
         }
 
-        private void LoadBattleScene() {
+        private void LoadStageSelect() {
             // Destroy the spawned select-screen player objects
-            // so they don't carry into the battle scene
+            // so they don't carry into the stage select scene
             for (int i = 0; i < 2; i++) {
                 if (_inputHandlers[i] != null)
                     Destroy(_inputHandlers[i].gameObject);
             }
 
-            SceneManager.LoadScene(BattleSceneName);
+            SceneManager.LoadScene(StageSelectSceneName);
         }
 
         // ──────────────────────────────────────
@@ -374,10 +335,23 @@ namespace FightingGame.Runtime {
 
             CharacterData highlighted = Roster[_cursorIndex[player]];
 
-            // Portrait
+            // Portrait (small icon)
             Image portrait = player == 0 ? P1Portrait : P2Portrait;
             if (portrait != null && highlighted.Portrait != null)
                 portrait.sprite = highlighted.Portrait;
+
+            // Full body art (large display)
+            Image fullBody = player == 0 ? P1FullBody : P2FullBody;
+            if (fullBody != null) {
+                if (highlighted.FullBodyArt != null) {
+                    fullBody.sprite = highlighted.FullBodyArt;
+                    fullBody.enabled = true;
+                    fullBody.SetNativeSize();
+                }
+                else {
+                    fullBody.enabled = false;
+                }
+            }
 
             // Name
             TMP_Text nameLabel = player == 0 ? P1NameLabel : P2NameLabel;
@@ -400,43 +374,6 @@ namespace FightingGame.Runtime {
                     Color c = img.color;
                     c.a = _phase[player] == SelectPhase.Locked ? 1f : 0.6f;
                     img.color = c;
-                }
-            }
-        }
-
-        private void ShowSuperArtPanel(int player) {
-            GameObject panel = player == 0 ? P1SuperArtPanel : P2SuperArtPanel;
-            if (panel != null) panel.SetActive(true);
-            UpdateSuperArtUI(player);
-        }
-
-        private void HideSuperArtPanel(int player) {
-            GameObject panel = player == 0 ? P1SuperArtPanel : P2SuperArtPanel;
-            if (panel != null) panel.SetActive(false);
-        }
-
-        private void UpdateSuperArtUI(int player) {
-            if (_selected[player]?.Moveset?.SuperArts == null) return;
-
-            TMP_Text[] labels = player == 0 ? P1SuperArtLabels : P2SuperArtLabels;
-            var superArts = _selected[player].Moveset.SuperArts;
-
-            if (labels == null) return;
-
-            for (int i = 0; i < labels.Length; i++) {
-                if (labels[i] == null) continue;
-
-                if (i < superArts.Length) {
-                    labels[i].text = superArts[i].Name;
-                    labels[i].fontStyle = (i == _superArtCursor[player])
-                        ? FontStyles.Bold | FontStyles.Underline
-                        : FontStyles.Normal;
-                    labels[i].color = (i == _superArtCursor[player])
-                        ? Color.yellow
-                        : Color.white;
-                }
-                else {
-                    labels[i].text = "";
                 }
             }
         }
