@@ -10,26 +10,32 @@ namespace FightingGame.Runtime {
     /// all physics (pushboxes) and combat (hitboxes vs hurtboxes)
     /// AFTER both players have acted each frame.
     ///
+    /// ROUND SYSTEM:
+    ///   Best of 3 (first to 2 round wins). Each round:
+    ///     1. RoundIntro — banner "ROUND N", players can't act
+    ///     2. RoundFight — banner "FIGHT!", brief pause then gameplay
+    ///     3. Playing — normal gameplay with timer countdown
+    ///     4. KO — a player's health hit 0 or timer ran out
+    ///     5. RoundEnd — KO banner, brief pause, then reset or match end
+    ///     6. MatchEnd — "YOU WIN" banner, match is over
+    ///
+    ///   Between rounds: health resets, meter carries over, positions reset.
+    ///
     /// GGXX HITSTOP MODEL:
     ///   Hitstop is per-player, not global. On hit:
     ///     - Attacker freezes for FrameData.GetAttackerHitstop() frames.
     ///     - Defender freezes for FrameData.GetDefenderHitstop() (on hit)
     ///       or FrameData.GetDefenderBlockstop() (on block) frames.
-    ///   Each player's hitstop is managed by PlayerController.ApplyHitstop().
-    ///   The game loop still ticks every frame; each PlayerController
-    ///   checks its own hitstop counter and early-returns if frozen.
     ///
     /// PLAYER SPAWNING:
     ///   Unlike the menu scenes, the battle scene does NOT use a
     ///   PlayerInputManager. Instead, MatchManager manually instantiates
     ///   both BattlePlayer prefabs on Start and pairs each with the
     ///   correct input device using MatchSettings.PlayerDeviceIds.
-    ///   This guarantees P1/P2 assignment is consistent with character
-    ///   select regardless of device join order.
     ///
     /// Setup:
-    ///   - Place on a GameObject in the battle scene (no PlayerInputManager needed).
-    ///   - Assign the BattlePlayerPrefab in the inspector.
+    ///   - Place on a GameObject in the battle scene.
+    ///   - Assign BattlePlayerPrefab, BattleUI, and BattleCamera in inspector.
     ///   - The prefab must have: PlayerInput, InputDetector, PlayerController.
     /// </summary>
     public class MatchManager : MonoBehaviour {
@@ -42,18 +48,13 @@ namespace FightingGame.Runtime {
         public GameObject BattlePlayerPrefab;
 
         [Header("Fallback Characters (for testing without CharSelect)")]
-        [Tooltip("If MatchSettings has no character for P1, use this. Leave null to require CharSelect flow.")]
+        [Tooltip("If MatchSettings has no character for P1, use this.")]
         public CharacterData FallbackP1Character;
         public CharacterData FallbackP2Character;
 
         [Header("Stage (fallback — overridden by MatchSettings.SelectedStage)")]
-        [Tooltip("Left boundary. Overridden by StageData if a stage was selected.")]
         public float StageLeftBound = -6f;
-
-        [Tooltip("Right boundary. Overridden by StageData if a stage was selected.")]
         public float StageRightBound = 6f;
-
-        [Tooltip("Ground Y position. Overridden by StageData if a stage was selected.")]
         public float GroundY = 0f;
 
         [Header("Spawn Points")]
@@ -61,16 +62,54 @@ namespace FightingGame.Runtime {
         public Transform[] SpawnPoints;
 
         [Header("Round Settings")]
-        [Tooltip("Round timer in seconds (99 standard). Overridden by StageData.RoundTimeOverride if > 0.")]
+        [Tooltip("Rounds needed to win the match.")]
+        [Min(1)] public int RoundsToWin = 2;
+
+        [Tooltip("Round timer in seconds (99 standard).")]
         public int RoundTimeSeconds = 99;
 
+        [Tooltip("Frames of intro banner before 'FIGHT!' (60 = 1 second).")]
+        public int IntroDelayFrames = 90;
+
+        [Tooltip("Frames the 'FIGHT!' banner stays up.")]
+        public int FightBannerFrames = 60;
+
+        [Tooltip("Frames of KO slowdown before the round-end sequence.")]
+        public int KOFreezeFrames = 120;
+
+        [Tooltip("Frames between rounds (after KO banner, before next round intro).")]
+        public int BetweenRoundFrames = 60;
+
+        [Header("UI & Camera")]
+        [Tooltip("Reference to the BattleUIManager in the scene.")]
+        public BattleUIManager BattleUI;
+
+        [Tooltip("Reference to the BattleCameraController in the scene.")]
+        public BattleCameraController BattleCamera;
+
         [Header("Stage Visuals")]
-        [Tooltip("Parent transform where the stage background prefab is instantiated.")]
         public Transform BackgroundParent;
 
         [Header("Stage Audio")]
-        [Tooltip("AudioSource used for BGM. If null, one is created automatically.")]
         public AudioSource BGMSource;
+
+        // ──────────────────────────────────────
+        //  ROUND STATE MACHINE
+        // ──────────────────────────────────────
+
+        public enum MatchPhase {
+            RoundIntro,     // "ROUND 1" banner, players frozen
+            RoundFight,     // "FIGHT!" banner, brief pause
+            Playing,        // Gameplay active
+            KO,             // KO freeze
+            RoundEnd,       // Pause between rounds
+            MatchEnd        // Match is over
+        }
+
+        [Header("Debug (read-only)")]
+        [SerializeField] private MatchPhase _phase = MatchPhase.RoundIntro;
+        [SerializeField] private int _currentRound = 1;
+        [SerializeField] private int _phaseTimer;
 
         // ──────────────────────────────────────
         //  STATE
@@ -79,18 +118,23 @@ namespace FightingGame.Runtime {
         private PlayerController[] _players = new PlayerController[2];
         private InputDetector[] _detectors = new InputDetector[2];
         private int _gameFrame;
+        private int[] _roundWins = new int[2];
 
-        // Per-frame hit tracking: prevents the same move from hitting
-        // multiple times on a single active frame.
-        private bool[] _hasHitThisFrame = new bool[2];
+        // Round timer (counts down in game frames; 60 frames = 1 second)
+        private int _roundTimerFrames;
+        private int _lastDisplayedSecond = -1;
 
-        // Track which moves have already connected (for multi-active-frame
-        // moves that should only hit once unless they're multi-hit).
+        // Track which moves have already connected
         private MoveData[] _lastMoveHit = new MoveData[2];
+
+        // Who won the current round (-1 = undecided, 0 = P1, 1 = P2, 2 = draw)
+        private int _roundWinner = -1;
 
         /// <summary>Read-only access to players for UI/camera.</summary>
         public PlayerController GetPlayer(int index) => _players[index];
         public int GameFrame => _gameFrame;
+        public MatchPhase Phase => _phase;
+        public int CurrentRound => _currentRound;
 
         // ──────────────────────────────────────
         //  LIFECYCLE
@@ -100,33 +144,25 @@ namespace FightingGame.Runtime {
             Time.fixedDeltaTime = 1f / 60f;
             ApplyStageData();
             SpawnPlayers();
+            StartRound();
         }
 
-        /// <summary>
-        /// Reads MatchSettings.SelectedStage and applies bounds, background,
-        /// and BGM. Falls back to inspector values if no stage was selected
-        /// (useful for testing the battle scene in isolation).
-        /// </summary>
         private void ApplyStageData() {
             StageData stage = MatchSettings.SelectedStage;
             if (stage == null) return;
 
-            // Apply bounds
             StageLeftBound = stage.LeftBound;
             StageRightBound = stage.RightBound;
             GroundY = stage.GroundY;
 
-            // Apply round time override
             if (stage.RoundTimeOverride > 0)
                 RoundTimeSeconds = stage.RoundTimeOverride;
 
-            // Instantiate background prefab
             if (stage.BackgroundPrefab != null) {
                 Transform parent = BackgroundParent != null ? BackgroundParent : transform;
                 Instantiate(stage.BackgroundPrefab, parent);
             }
 
-            // Play BGM
             if (stage.BGM != null) {
                 if (BGMSource == null) {
                     BGMSource = gameObject.AddComponent<AudioSource>();
@@ -144,11 +180,6 @@ namespace FightingGame.Runtime {
         //  PLAYER SPAWNING
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Manually instantiates both players and pairs each with the
-        /// input device they used in character select. No PlayerInputManager
-        /// needed — devices are assigned directly via PlayerInput API.
-        /// </summary>
         private void SpawnPlayers() {
             if (BattlePlayerPrefab == null) {
                 Debug.LogError("[MatchManager] BattlePlayerPrefab is not assigned!");
@@ -156,14 +187,10 @@ namespace FightingGame.Runtime {
             }
 
             for (int idx = 0; idx < 2; idx++) {
-                // Find the device this player used in character select
                 InputDevice device = FindDeviceForPlayer(idx);
 
-                // Instantiate the prefab
                 GameObject playerObj;
                 if (device != null) {
-                    // Spawn with specific device pairing — this creates the
-                    // PlayerInput and immediately assigns the device to it.
                     playerObj = PlayerInput.Instantiate(
                         BattlePlayerPrefab,
                         playerIndex: idx,
@@ -171,12 +198,8 @@ namespace FightingGame.Runtime {
                     ).gameObject;
                 }
                 else {
-                    // No device tracked (testing battle scene in isolation).
-                    // Just instantiate normally — player won't have input
-                    // unless a device is available.
                     playerObj = Instantiate(BattlePlayerPrefab);
-                    Debug.LogWarning($"[MatchManager] No tracked device for P{idx + 1}. " +
-                        "Input may not work. Go through CharSelect to pair devices.");
+                    Debug.LogWarning($"[MatchManager] No tracked device for P{idx + 1}.");
                 }
 
                 playerObj.name = $"BattlePlayer_P{idx + 1}";
@@ -184,29 +207,19 @@ namespace FightingGame.Runtime {
             }
         }
 
-        /// <summary>
-        /// Finds the InputDevice that matches the deviceId stored in
-        /// MatchSettings during character select.
-        /// </summary>
         private InputDevice FindDeviceForPlayer(int playerIndex) {
             int deviceId = MatchSettings.PlayerDeviceIds[playerIndex];
-            if (deviceId == 0) return null; // not set
+            if (deviceId == 0) return null;
 
             foreach (var device in InputSystem.devices) {
                 if (device.deviceId == deviceId)
                     return device;
             }
 
-            Debug.LogWarning($"[MatchManager] Device ID {deviceId} for P{playerIndex + 1} " +
-                "not found. It may have been disconnected.");
+            Debug.LogWarning($"[MatchManager] Device ID {deviceId} for P{playerIndex + 1} not found.");
             return null;
         }
 
-        /// <summary>
-        /// Configures a spawned player object: assigns character data,
-        /// wires input, sets facing, positions at spawn point, and
-        /// instantiates the character visual prefab.
-        /// </summary>
         private void SetupPlayer(int idx, GameObject playerObj) {
             var playerInput = playerObj.GetComponent<PlayerInput>();
             var controller = playerObj.GetComponent<PlayerController>();
@@ -220,11 +233,9 @@ namespace FightingGame.Runtime {
             _players[idx] = controller;
             _detectors[idx] = detector;
 
-            // Wire input events (Invoke C# Events mode)
             if (playerInput != null)
                 WireInputEvents(playerInput, detector);
 
-            // Apply character from MatchSettings, or fall back to inspector defaults
             CharacterData character = MatchSettings.SelectedCharacters[idx];
             if (character == null)
                 character = idx == 0 ? FallbackP1Character : FallbackP2Character;
@@ -236,10 +247,8 @@ namespace FightingGame.Runtime {
                 $"{(controller.Character != null ? controller.Character.CharacterName : "NULL")}, " +
                 $"Device: {(playerInput != null && playerInput.devices.Count > 0 ? playerInput.devices[0].displayName : "none")}");
 
-            // P1 faces right, P2 faces left
             detector.FacingSign = (idx == 0) ? 1 : -1;
 
-            // Position at spawn point
             if (SpawnPoints != null && idx < SpawnPoints.Length && SpawnPoints[idx] != null)
                 controller.transform.position = SpawnPoints[idx].position;
 
@@ -255,9 +264,13 @@ namespace FightingGame.Runtime {
                 if (audioSource == null)
                     audioSource = visual.AddComponent<AudioSource>();
 
+                if (animator != null && animator.runtimeAnimatorController == null) {
+                    animator.enabled = false;
+                    animator = null;
+                }
+
                 controller.SetVisualReferences(animator, audioSource);
 
-                // Apply palette swap
                 int palette = MatchSettings.SelectedPalettes[idx];
                 if (controller.Character.ColorPalettes != null
                     && palette < controller.Character.ColorPalettes.Length) {
@@ -274,12 +287,6 @@ namespace FightingGame.Runtime {
         //  INPUT EVENT WIRING
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Subscribes InputDetector callbacks to PlayerInput action events.
-        /// Called once per player during setup. Action names must match your
-        /// Input Action Asset's Gameplay map (Move, Punch, Kick, Slash,
-        /// HeavySlash, Dust).
-        /// </summary>
         private void WireInputEvents(PlayerInput playerInput, InputDetector detector) {
             var actions = playerInput.actions;
             if (actions == null) {
@@ -287,7 +294,6 @@ namespace FightingGame.Runtime {
                 return;
             }
 
-            // Helper: find action, subscribe if it exists
             void Bind(string actionName, System.Action<InputAction.CallbackContext> callback) {
                 var action = actions.FindAction(actionName);
                 if (action != null) {
@@ -309,29 +315,124 @@ namespace FightingGame.Runtime {
         }
 
         // ──────────────────────────────────────
+        //  ROUND MANAGEMENT
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Begins a new round. Resets health, positions, and starts the
+        /// intro sequence. Meter carries over between rounds.
+        /// </summary>
+        private void StartRound() {
+            _roundWinner = -1;
+            _roundTimerFrames = RoundTimeSeconds * 60;
+            _lastDisplayedSecond = -1;
+            _lastMoveHit[0] = null;
+            _lastMoveHit[1] = null;
+
+            // Reset players for new round (meter carries over)
+            for (int i = 0; i < 2; i++) {
+                if (_players[i] == null) continue;
+
+                int savedMeter = _players[i].Meter;
+                _players[i].ResetForNewRound(keepMeter: true);
+
+                // Reposition
+                if (SpawnPoints != null && i < SpawnPoints.Length && SpawnPoints[i] != null)
+                    _players[i].transform.position = SpawnPoints[i].position;
+
+                // Reset facing
+                _detectors[i].FacingSign = (i == 0) ? 1 : -1;
+                Vector3 scale = _players[i].transform.localScale;
+                scale.x = Mathf.Abs(scale.x) * _detectors[i].FacingSign;
+                _players[i].transform.localScale = scale;
+            }
+
+            // Snap camera to reset position
+            if (BattleCamera != null)
+                BattleCamera.SnapToTarget();
+
+            // Start intro sequence
+            SetPhase(MatchPhase.RoundIntro);
+
+            if (BattleUI != null) {
+                BattleUI.ShowBanner($"ROUND {_currentRound}", IntroDelayFrames / 60f);
+                BattleUI.SetTimer(RoundTimeSeconds);
+                BattleUI.SetP1RoundWins(_roundWins[0]);
+                BattleUI.SetP2RoundWins(_roundWins[1]);
+            }
+
+            Debug.Log($"[MatchManager] === ROUND {_currentRound} START ===");
+        }
+
+        private void SetPhase(MatchPhase newPhase) {
+            _phase = newPhase;
+            _phaseTimer = 0;
+        }
+
+        // ──────────────────────────────────────
         //  FIXED UPDATE — THE GAME LOOP
         // ──────────────────────────────────────
 
         private void FixedUpdate() {
             if (_players[0] == null || _players[1] == null) return;
 
+            _phaseTimer++;
+
+            switch (_phase) {
+                case MatchPhase.RoundIntro:
+                    TickRoundIntro();
+                    break;
+
+                case MatchPhase.RoundFight:
+                    TickRoundFight();
+                    break;
+
+                case MatchPhase.Playing:
+                    TickPlaying();
+                    break;
+
+                case MatchPhase.KO:
+                    TickKO();
+                    break;
+
+                case MatchPhase.RoundEnd:
+                    TickRoundEnd();
+                    break;
+
+                case MatchPhase.MatchEnd:
+                    // Match is over — do nothing (or return to menu)
+                    break;
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  PHASE TICKING
+        // ──────────────────────────────────────
+
+        private void TickRoundIntro() {
+            // Players frozen during intro
+            if (_phaseTimer >= IntroDelayFrames) {
+                SetPhase(MatchPhase.RoundFight);
+                if (BattleUI != null)
+                    BattleUI.ShowBanner("FIGHT!", FightBannerFrames / 60f);
+            }
+        }
+
+        private void TickRoundFight() {
+            if (_phaseTimer >= FightBannerFrames) {
+                SetPhase(MatchPhase.Playing);
+                Debug.Log("[MatchManager] FIGHT!");
+            }
+        }
+
+        private void TickPlaying() {
             _gameFrame++;
 
-            // --- RESET PER-FRAME HIT TRACKING ---
-            _hasHitThisFrame[0] = false;
-            _hasHitThisFrame[1] = false;
-
             // --- TICK BOTH PLAYERS ---
-            // Each player's GameTick checks their own hitstop counter.
-            // If in hitstop, they freeze but still buffer input.
             _players[0].GameTick();
             _players[1].GameTick();
 
-            // --- PUSHBOX RESOLUTION (before hitboxes) ---
-            // Only resolve if neither player is in hitstop (positions shouldn't
-            // change during freeze). Both frozen = skip. One frozen = skip
-            // (the non-frozen one might walk but pushbox push during hitstop
-            // looks wrong visually).
+            // --- PUSHBOX RESOLUTION ---
             if (!_players[0].InHitstop && !_players[1].InHitstop)
                 ResolvePushboxes();
 
@@ -343,6 +444,127 @@ namespace FightingGame.Runtime {
 
             // --- CLAMP TO STAGE ---
             ClampToStageBounds();
+
+            // --- TIMER ---
+            _roundTimerFrames--;
+            int displaySecond = Mathf.CeilToInt(_roundTimerFrames / 60f);
+            displaySecond = Mathf.Max(0, displaySecond);
+
+            if (displaySecond != _lastDisplayedSecond) {
+                _lastDisplayedSecond = displaySecond;
+                if (BattleUI != null)
+                    BattleUI.SetTimer(displaySecond);
+            }
+
+            // --- CHECK WIN CONDITIONS ---
+            CheckWinConditions();
+        }
+
+        private void TickKO() {
+            if (_phaseTimer >= KOFreezeFrames) {
+                // Award round win
+                if (_roundWinner == 0 || _roundWinner == 1) {
+                    _roundWins[_roundWinner]++;
+
+                    if (BattleUI != null) {
+                        BattleUI.SetP1RoundWins(_roundWins[0]);
+                        BattleUI.SetP2RoundWins(_roundWins[1]);
+                    }
+
+                    Debug.Log($"[MatchManager] Round {_currentRound} winner: P{_roundWinner + 1} " +
+                        $"(Score: P1={_roundWins[0]}, P2={_roundWins[1]})");
+                }
+                else if (_roundWinner == 2) {
+                    // Double KO — both get a win (GGXX behavior)
+                    _roundWins[0]++;
+                    _roundWins[1]++;
+
+                    if (BattleUI != null) {
+                        BattleUI.SetP1RoundWins(_roundWins[0]);
+                        BattleUI.SetP2RoundWins(_roundWins[1]);
+                    }
+
+                    Debug.Log($"[MatchManager] Round {_currentRound}: DOUBLE KO!");
+                }
+
+                // Check if match is over
+                if (_roundWins[0] >= RoundsToWin || _roundWins[1] >= RoundsToWin) {
+                    SetPhase(MatchPhase.MatchEnd);
+
+                    string winner;
+                    if (_roundWins[0] >= RoundsToWin && _roundWins[1] >= RoundsToWin)
+                        winner = "DRAW GAME";
+                    else if (_roundWins[0] >= RoundsToWin)
+                        winner = "P1 WINS";
+                    else
+                        winner = "P2 WINS";
+
+                    if (BattleUI != null)
+                        BattleUI.ShowBanner(winner, 5f);
+
+                    Debug.Log($"[MatchManager] === MATCH OVER: {winner} ===");
+                }
+                else {
+                    // More rounds to play
+                    SetPhase(MatchPhase.RoundEnd);
+                }
+            }
+        }
+
+        private void TickRoundEnd() {
+            if (_phaseTimer >= BetweenRoundFrames) {
+                _currentRound++;
+                StartRound();
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  WIN CONDITION CHECKS
+        // ──────────────────────────────────────
+
+        private void CheckWinConditions() {
+            bool p1Dead = _players[0].Health <= 0
+                       || _players[0].State == PlayerController.PlayerState.KO;
+            bool p2Dead = _players[1].Health <= 0
+                       || _players[1].State == PlayerController.PlayerState.KO;
+            bool timeUp = _roundTimerFrames <= 0;
+
+            if (p1Dead && p2Dead) {
+                // Double KO
+                _roundWinner = 2;
+                TriggerKO("DOUBLE KO");
+            }
+            else if (p1Dead) {
+                _roundWinner = 1; // P2 wins
+                TriggerKO("KO");
+            }
+            else if (p2Dead) {
+                _roundWinner = 0; // P1 wins
+                TriggerKO("KO");
+            }
+            else if (timeUp) {
+                // Time over — player with more health wins
+                int p1Health = _players[0].Health;
+                int p2Health = _players[1].Health;
+
+                if (p1Health > p2Health)
+                    _roundWinner = 0;
+                else if (p2Health > p1Health)
+                    _roundWinner = 1;
+                else
+                    _roundWinner = 2; // Draw
+
+                TriggerKO("TIME");
+            }
+        }
+
+        private void TriggerKO(string bannerText) {
+            SetPhase(MatchPhase.KO);
+
+            if (BattleUI != null)
+                BattleUI.ShowBanner(bannerText, KOFreezeFrames / 60f);
+
+            Debug.Log($"[MatchManager] {bannerText}!");
         }
 
         // ──────────────────────────────────────
@@ -388,12 +610,10 @@ namespace FightingGame.Runtime {
             var atk = _players[attackerIdx];
             var def = _players[defenderIdx];
 
-            // Only check if the attacker is in Active phase and NOT in hitstop
             if (atk.State != PlayerController.PlayerState.Active) return;
             if (atk.InHitstop) return;
             if (atk.CurrentMove == null) return;
 
-            // Don't hit again if this move already connected (single-hit moves)
             if (_lastMoveHit[attackerIdx] == atk.CurrentMove && atk.CurrentMove.HitCount <= 1)
                 return;
 
@@ -406,7 +626,6 @@ namespace FightingGame.Runtime {
             HurtboxLayout defLayout = GetActiveHurtboxLayout(def);
             if (defLayout.Invincible) return;
 
-            // Check overlap
             bool hit = false;
             foreach (var hitRect in hitRects) {
                 foreach (var hurtRect in hurtRects) {
@@ -443,15 +662,15 @@ namespace FightingGame.Runtime {
             atk.ApplyHitstop(attackerHitstop);
             def.ApplyHitstop(defenderHitstop);
 
-            // Grant meter to attacker
-            if (blocked)
-                atk.AddMeter(atk.CurrentMove.Damage.MeterGainOnHit / 2);
-            else
-                atk.AddMeter(atk.CurrentMove.Damage.MeterGainOnHit);
+            // --- TENSION GAIN ---
+            if (blocked) {
+                atk.AddMeter(atk.Character.TensionGainOnBlock);
+            }
+            else {
+                atk.AddMeter(atk.Character.TensionGainOnHit);
+            }
 
-            // Track that this move has connected
             _lastMoveHit[attackerIdx] = atk.CurrentMove;
-            _hasHitThisFrame[attackerIdx] = true;
         }
 
         // ──────────────────────────────────────
@@ -521,11 +740,6 @@ namespace FightingGame.Runtime {
             }
         }
 
-        /// <summary>
-        /// Calculates which frame of the active phase the move is on.
-        /// FirstActiveFrame = Startup (startup does not include first active frame).
-        /// Returns -1 if the move is not in active phase.
-        /// </summary>
         private int GetMoveActiveFrame(PlayerController player) {
             if (player.CurrentMove == null) return -1;
 
@@ -536,7 +750,7 @@ namespace FightingGame.Runtime {
             if (moveFrame < firstActive) return -1;
             if (moveFrame > lastActive) return -1;
 
-            return moveFrame - firstActive; // 0-indexed active frame
+            return moveFrame - firstActive;
         }
 
         // ──────────────────────────────────────
@@ -586,7 +800,6 @@ namespace FightingGame.Runtime {
 
             def.AddMeter(def.Character.ParryMeterGain);
 
-            // Parry uses the defender's character-specific parry hitstop
             int parryHitstop = def.Character.ParryHitStop;
             _players[attackerIdx].ApplyHitstop(parryHitstop);
             def.ApplyHitstop(parryHitstop);
@@ -613,8 +826,6 @@ namespace FightingGame.Runtime {
                 else
                     _detectors[i].FacingSign = delta >= 0 ? -1 : 1;
 
-                // Flip the visual to match facing direction.
-                // Scale.x = FacingSign so the sprite faces the right way.
                 Vector3 scale = _players[i].transform.localScale;
                 scale.x = Mathf.Abs(scale.x) * _detectors[i].FacingSign;
                 _players[i].transform.localScale = scale;
@@ -632,16 +843,6 @@ namespace FightingGame.Runtime {
                 pos.y = Mathf.Max(pos.y, GroundY);
                 _players[i].transform.position = pos;
             }
-        }
-
-        // ──────────────────────────────────────
-        //  UTILITY
-        // ──────────────────────────────────────
-
-        private int GetPlayerIndex(PlayerController player) {
-            if (_players[0] == player) return 0;
-            if (_players[1] == player) return 1;
-            return -1;
         }
     }
 }

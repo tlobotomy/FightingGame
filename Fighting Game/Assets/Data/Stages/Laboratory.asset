@@ -15,7 +15,7 @@ MonoBehaviour:
   StageName: Laboratory
   Description: so eeevile
   PreviewImage: {fileID: 21300000, guid: 02a1e884e84637a43a3e9f479a13fab3, type: 3}
-  BackgroundPrefab: {fileID: 0}
+  BackgroundPrefab: {fileID: 1814292073256504259, guid: 9c307b33f43eb094099fddebadb3f979, type: 3}
   LeftBound: -235
   RightBound: 235
   GroundY: -522

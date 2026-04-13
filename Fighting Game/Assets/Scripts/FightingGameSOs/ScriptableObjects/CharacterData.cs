@@ -143,9 +143,39 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("Frames of hit freeze on successful parry.")]
         [Min(0)] public int ParryHitStop = 12;
 
-        [Header("Meter")]
-        [Tooltip("Total tension/super meter capacity for this character.")]
-        [Min(1)] public int MaxMeter = 100;
+        [Header("Tension Gauge (GGXX)")]
+        [Tooltip("Total tension gauge capacity (10000 = full bar in GGXX internal units).")]
+        [Min(1)] public int MaxMeter = 10000;
+
+        [Tooltip("Tension gained per frame while walking forward.")]
+        [Min(0)] public int TensionGainForwardWalk = 8;
+
+        [Tooltip("Tension gained per frame during forward dash.")]
+        [Min(0)] public int TensionGainForwardDash = 16;
+
+        [Tooltip("Tension gained when an attack connects (hit).")]
+        [Min(0)] public int TensionGainOnHit = 72;
+
+        [Tooltip("Tension gained when an attack is blocked by opponent.")]
+        [Min(0)] public int TensionGainOnBlock = 36;
+
+        [Tooltip("Tension gained on whiffed attack (per swing).")]
+        [Min(0)] public int TensionGainOnWhiff = 18;
+
+        [Tooltip("Tension gained per frame spent in startup/active of a move (rewarding aggression).")]
+        [Min(0)] public int TensionGainPerAttackFrame = 2;
+
+        [Tooltip("Frames of idle/backward walk before the Tension Pulse (negative penalty) kicks in.")]
+        [Min(1)] public int TensionPulseThreshold = 120;
+
+        [Tooltip("Tension drained per frame during negative penalty state.")]
+        [Min(0)] public int TensionDrainRate = 4;
+
+        [Tooltip("How many frames the negative penalty lasts once triggered.")]
+        [Min(1)] public int NegativePenaltyDuration = 600;
+
+        [Tooltip("Tension cost for Faultless Defense per frame (quarter-circle back + button while blocking).")]
+        [Min(0)] public int FaultlessDefenseCostPerFrame = 50;
 
         /// <summary>
         /// Total meter capacity. All supers draw from the same meter pool.

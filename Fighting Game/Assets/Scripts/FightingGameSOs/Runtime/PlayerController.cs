@@ -101,6 +101,11 @@ namespace FightingGame.Runtime {
         private int _meter;
         private int _stunMeter;
 
+        // GGXX Tension system
+        private int _negativePenaltyTimer;  // > 0 means penalty is active, draining meter
+        private int _idleNegativeTimer;     // frames spent idle/walking back (triggers penalty)
+        private bool _inNegativePenalty;
+
         // ──────────────────────────────────────
         //  PUBLIC ACCESSORS
         // ──────────────────────────────────────
@@ -113,6 +118,17 @@ namespace FightingGame.Runtime {
         public int MoveFrame => _moveFrame;
         public int FacingSign => _detector.FacingSign;
         public bool InHitstop => _hitstopRemaining > 0;
+        public bool InNegativePenalty => _inNegativePenalty;
+
+        /// <summary>
+        /// Sets health directly (used by round system for resets).
+        /// </summary>
+        public void SetHealth(int value) => _health = value;
+
+        /// <summary>
+        /// Sets meter directly (used by round system for resets or carries).
+        /// </summary>
+        public void SetMeter(int value) => _meter = value;
 
         /// <summary>
         /// Called by MatchManager after instantiating the character's
@@ -163,6 +179,9 @@ namespace FightingGame.Runtime {
             _gameFrame = 0;
             _hitstopRemaining = 0;
             _stunFramesRemaining = 0;
+            _negativePenaltyTimer = 0;
+            _idleNegativeTimer = 0;
+            _inNegativePenalty = false;
             _state = PlayerState.Idle;
             _buffer.Clear();
         }
@@ -219,6 +238,9 @@ namespace FightingGame.Runtime {
             // 5. If still idle/walking, handle movement
             if (IsMovementState())
                 HandleMovement(input);
+
+            // 6. Update GGXX tension gauge
+            TickTension();
 
             // Debug
             _currentMoveName = _currentMove != null ? _currentMove.MoveName : "—";
@@ -787,12 +809,108 @@ namespace FightingGame.Runtime {
         }
 
         /// <summary>
-        /// Adds meter (called by MatchManager when this player's moves
-        /// hit or are blocked).
+        /// Adds tension meter. During negative penalty, gain is halved.
         /// </summary>
         public void AddMeter(int amount) {
+            if (_inNegativePenalty)
+                amount /= 2; // GGXX: negative penalty halves all tension gain
+
             int max = Character.GetTotalMeterCapacity();
             _meter = Mathf.Min(_meter + amount, max);
+        }
+
+        /// <summary>
+        /// Resets player state for a new round. Health resets to full,
+        /// meter is preserved (GGXX convention), position/state reset.
+        /// Called by MatchManager between rounds.
+        /// </summary>
+        public void ResetForNewRound(bool keepMeter) {
+            _health = Character.MaxHealth;
+            if (!keepMeter) _meter = 0;
+            _stunMeter = Character.MaxStun;
+            _hitstopRemaining = 0;
+            _stunFramesRemaining = 0;
+            _negativePenaltyTimer = 0;
+            _idleNegativeTimer = 0;
+            _inNegativePenalty = false;
+            _currentMove = null;
+            _moveFrame = 0;
+            _velocityX = 0f;
+            _velocityY = 0f;
+            _state = PlayerState.Idle;
+            _stateFrameCounter = 0;
+            _buffer.Clear();
+
+            // Reset animation to idle
+            if (_animator != null && HasAnimatorState("Idle"))
+                _animator.Play("Idle", 0, 0f);
+        }
+
+        // ──────────────────────────────────────
+        //  GGXX TENSION GAUGE LOGIC
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Called every game tick from GameTick() to update the GGXX tension system.
+        /// Positive actions (forward movement, attacking) build tension.
+        /// Negative actions (idle, walking back) build a negative penalty counter
+        /// that eventually triggers a penalty state draining meter.
+        /// </summary>
+        private void TickTension() {
+            if (Character == null) return;
+
+            // --- NEGATIVE PENALTY DRAIN ---
+            if (_inNegativePenalty) {
+                _negativePenaltyTimer--;
+                _meter = Mathf.Max(0, _meter - Character.TensionDrainRate);
+
+                if (_negativePenaltyTimer <= 0) {
+                    _inNegativePenalty = false;
+                    _idleNegativeTimer = 0;
+                }
+                return; // no gain during penalty
+            }
+
+            // --- POSITIVE TENSION GAIN (movement & aggression) ---
+            switch (_state) {
+                case PlayerState.WalkForward:
+                    AddMeter(Character.TensionGainForwardWalk);
+                    _idleNegativeTimer = 0; // reset negative counter
+                    break;
+
+                case PlayerState.DashForward:
+                    AddMeter(Character.TensionGainForwardDash);
+                    _idleNegativeTimer = 0;
+                    break;
+
+                case PlayerState.Startup:
+                case PlayerState.Active:
+                    // Gain tension while attacking (even on whiff)
+                    AddMeter(Character.TensionGainPerAttackFrame);
+                    _idleNegativeTimer = 0;
+                    break;
+
+                case PlayerState.WalkBack:
+                    // Walking back is negative behavior
+                    _idleNegativeTimer++;
+                    break;
+
+                case PlayerState.Idle:
+                    // Idle is mildly negative
+                    _idleNegativeTimer++;
+                    break;
+
+                default:
+                    // Other states (jumping, hitstun, etc.) are neutral
+                    break;
+            }
+
+            // --- CHECK FOR NEGATIVE PENALTY TRIGGER ---
+            if (_idleNegativeTimer >= Character.TensionPulseThreshold) {
+                _inNegativePenalty = true;
+                _negativePenaltyTimer = Character.NegativePenaltyDuration;
+                Debug.Log($"[Tension] NEGATIVE PENALTY triggered on {gameObject.name}!");
+            }
         }
     }
 }

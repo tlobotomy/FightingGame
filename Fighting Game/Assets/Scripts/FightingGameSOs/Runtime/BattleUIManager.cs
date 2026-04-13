@@ -4,7 +4,7 @@ using TMPro;
 
 namespace FightingGame.Runtime {
     /// <summary>
-    /// Drives all in-match HUD elements: health bars, meter bars,
+    /// Drives all in-match HUD elements: health bars, tension meter bars,
     /// round timer, round counters, and state banners (ROUND 1, FIGHT,
     /// KO, etc.).
     ///
@@ -12,10 +12,16 @@ namespace FightingGame.Runtime {
     /// MatchManager. Updates every frame in Update (visual-only,
     /// not gameplay-critical, so Update is fine).
     ///
+    /// TENSION GAUGE DISPLAY:
+    ///   The meter bar fills based on current tension / max tension.
+    ///   During negative penalty, the bar color shifts to a warning color
+    ///   and optionally flashes to signal the player.
+    ///
     /// Setup:
     ///   - Place on a UI Canvas in the Battle scene.
     ///   - Drag the MatchManager reference into the inspector.
     ///   - Wire every UI element to its slot.
+    ///   - Health bars and meter bars must have Image Type = Filled.
     /// </summary>
     public class BattleUIManager : MonoBehaviour {
         // ──────────────────────────────────────
@@ -53,7 +59,14 @@ namespace FightingGame.Runtime {
         public Color HealthFullColor = new Color(0.2f, 0.8f, 0.2f, 1f);
         public Color HealthLowColor = new Color(0.9f, 0.15f, 0.15f, 1f);
         [Range(0f, 1f)] public float HealthLowThreshold = 0.25f;
+
+        [Header("Tension Gauge Colors")]
+        [Tooltip("Normal tension bar color.")]
         public Color MeterColor = new Color(0.3f, 0.5f, 1f, 1f);
+        [Tooltip("Tension bar color during negative penalty.")]
+        public Color MeterPenaltyColor = new Color(0.9f, 0.2f, 0.2f, 1f);
+        [Tooltip("Flash speed during negative penalty (cycles per second).")]
+        public float PenaltyFlashSpeed = 4f;
 
         // ──────────────────────────────────────
         //  STATE
@@ -138,6 +151,15 @@ namespace FightingGame.Runtime {
 
             float ratio = (float)player.Meter / player.Character.GetTotalMeterCapacity();
             bar.fillAmount = Mathf.Clamp01(ratio);
+
+            // Flash during negative penalty
+            if (player.InNegativePenalty) {
+                float flash = (Mathf.Sin(Time.time * PenaltyFlashSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
+                bar.color = Color.Lerp(MeterPenaltyColor, MeterColor, flash);
+            }
+            else {
+                bar.color = MeterColor;
+            }
         }
 
         // ──────────────────────────────────────
@@ -145,7 +167,8 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         /// <summary>
-        /// Call from MatchManager each second (or each frame with remaining time).
+        /// Called from MatchManager each second (or whenever the displayed
+        /// timer value changes).
         /// </summary>
         public void SetTimer(int secondsRemaining) {
             if (TimerLabel == null) return;
@@ -176,7 +199,7 @@ namespace FightingGame.Runtime {
 
         /// <summary>
         /// Shows a full-screen banner with the given text for a set duration.
-        /// Call from MatchManager for round start/end sequences.
+        /// Called from MatchManager for round start/end sequences.
         /// </summary>
         public void ShowBanner(string text, float duration = 2f) {
             if (BannerRoot == null || BannerText == null) return;

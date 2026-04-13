@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c2140dec1d4fcad4cbac2196340a04a7, type: 3}
-  m_Name: Metro
+  m_Name: Arena
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.StageData
-  StageName: Metro
-  Description: honk honnk
-  PreviewImage: {fileID: 21300000, guid: c2b1661021e41b449a1bf0990241b404, type: 3}
-  BackgroundPrefab: {fileID: 1814292073256504259, guid: 3f73262ad191e8a4b9c9ff4a39fe8101, type: 3}
-  LeftBound: -6
-  RightBound: 6
+  StageName: Arena
+  Description: 
+  PreviewImage: {fileID: 0}
+  BackgroundPrefab: {fileID: 1814292073256504259, guid: 3d470d8e009ad824a951587022e67d3a, type: 3}
+  LeftBound: -100
+  RightBound: 100
   GroundY: 0
   BGM: {fileID: 0}
   BGMVolume: 1
