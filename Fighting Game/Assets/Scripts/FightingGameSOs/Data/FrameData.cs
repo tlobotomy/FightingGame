@@ -34,31 +34,40 @@ namespace FightingGame.Data {
         [Tooltip("Frames after hitbox deactivates before the character can act.")]
         [Min(0)] public int Recovery;
 
-        // ---- Attack Level (GGXX) ----
+        // ---- Attack Level (GGACR) ----
 
         [Header("Attack Level")]
-        [Tooltip("GGXX attack level (0–5). Determines hitstop, blockstop, hitstun, and blockstun.\n" +
-                 "Level 0 = jabs, Level 5 = Dust/supers. See AttackLevelData for the lookup table.")]
-        [Range(0, 5)] public int AttackLevel;
+        [Tooltip("GGACR attack level (1–5). Determines hitstop, blockstop, hitstun, blockstun, " +
+                 "untechable time, and guard balance.\n" +
+                 "Level 1 = light normals, Level 5 = Dust/supers. See AttackLevelData.")]
+        [Range(1, 5)] public int AttackLevel;
 
         // ---- Optional per-move overrides ----
+        // Specials and supers often deviate from the attack level table.
+        // Set any value > 0 to override the level default.
 
         [Header("Overrides (leave 0 to use Attack Level defaults)")]
 
-        [Tooltip("Override attacker hitstop. 0 = use AttackLevel default.")]
-        [Min(0)] public int AttackerHitstopOverride;
+        [Tooltip("When true, HitstopOverride is used even if it's 0 (for moves with genuinely zero hitstop like Sol f.S).")]
+        public bool UseHitstopOverride;
 
-        [Tooltip("Override defender hitstop on hit. 0 = use AttackLevel default.")]
-        [Min(0)] public int DefenderHitstopOverride;
+        [Tooltip("Override hitstop (same for attacker and defender on normal hit). Only used if UseHitstopOverride is true OR value > 0.")]
+        [Min(0)] public int HitstopOverride;
 
-        [Tooltip("Override defender blockstop. 0 = use AttackLevel default.")]
-        [Min(0)] public int DefenderBlockstopOverride;
+        [Tooltip("When true, BlockstopOverride is used even if it's 0.")]
+        public bool UseBlockstopOverride;
 
-        [Tooltip("Override hitstun frames. 0 = use AttackLevel default.")]
+        [Tooltip("Override blockstop. Only used if UseBlockstopOverride is true OR value > 0.")]
+        [Min(0)] public int BlockstopOverride;
+
+        [Tooltip("Override standing hitstun. 0 = use level default.")]
         [Min(0)] public int HitstunOverride;
 
-        [Tooltip("Override blockstun frames. 0 = use AttackLevel default.")]
+        [Tooltip("Override ground blockstun. 0 = use level default.")]
         [Min(0)] public int BlockstunOverride;
+
+        [Tooltip("Override untechable time (air hit). 0 = use level default.")]
+        [Min(0)] public int UntechableTimeOverride;
 
         // ---- Derived / convenience ----
 
@@ -76,35 +85,105 @@ namespace FightingGame.Data {
 
         // ---- Resolved properties (use these at runtime) ----
 
-        /// <summary>Frames the ATTACKER freezes on hit or block.</summary>
-        public int GetAttackerHitstop() {
-            if (AttackerHitstopOverride > 0) return AttackerHitstopOverride;
-            return AttackLevelData.Get(AttackLevel).AttackerHitstop;
+        /// <summary>
+        /// Base hitstop frames (same for attacker and defender on normal hit).
+        /// In GGACR, hitstop is symmetric. Counter hit adds extra to defender only.
+        /// </summary>
+        public int GetHitstop() {
+            if (UseHitstopOverride || HitstopOverride > 0) return HitstopOverride;
+            return AttackLevelData.Get(AttackLevel).Hitstop;
         }
 
-        /// <summary>Frames the DEFENDER freezes on hit.</summary>
-        public int GetDefenderHitstop() {
-            if (DefenderHitstopOverride > 0) return DefenderHitstopOverride;
-            return AttackLevelData.Get(AttackLevel).DefenderHitstop;
+        /// <summary>Blockstop frames (freeze on block, same for both players).</summary>
+        public int GetBlockstop() {
+            if (UseBlockstopOverride || BlockstopOverride > 0) return BlockstopOverride;
+            return AttackLevelData.Get(AttackLevel).Blockstop;
         }
 
-        /// <summary>Frames the DEFENDER freezes on block.</summary>
-        public int GetDefenderBlockstop() {
-            if (DefenderBlockstopOverride > 0) return DefenderBlockstopOverride;
-            return AttackLevelData.Get(AttackLevel).DefenderBlockstop;
-        }
-
-        /// <summary>Hitstun the defender suffers AFTER hitstop ends.</summary>
-        public int GetHitstun() {
+        /// <summary>Standing hitstun (after hitstop ends).</summary>
+        public int GetStandingHitstun() {
             if (HitstunOverride > 0) return HitstunOverride;
-            return AttackLevelData.Get(AttackLevel).Hitstun;
+            return AttackLevelData.Get(AttackLevel).StandingHitstun;
         }
 
-        /// <summary>Blockstun the defender suffers AFTER blockstop ends.</summary>
+        /// <summary>Crouching hitstun = standing + crouching bonus.</summary>
+        public int GetCrouchingHitstun() {
+            if (HitstunOverride > 0) return HitstunOverride; // override replaces everything
+            var props = AttackLevelData.Get(AttackLevel);
+            return props.StandingHitstun + props.CrouchingHitstunBonus;
+        }
+
+        /// <summary>Ground blockstun (after blockstop ends).</summary>
         public int GetBlockstun() {
             if (BlockstunOverride > 0) return BlockstunOverride;
             return AttackLevelData.Get(AttackLevel).Blockstun;
         }
+
+        /// <summary>Ground blockstun during Faultless Defense.</summary>
+        public int GetFDBlockstun() {
+            int baseStun = GetBlockstun();
+            return baseStun + AttackLevelData.Get(AttackLevel).FDBlockstunMod;
+        }
+
+        /// <summary>Ground blockstun during Instant Block.</summary>
+        public int GetIBBlockstun() {
+            int baseStun = GetBlockstun();
+            return Mathf.Max(1, baseStun + AttackLevelData.Get(AttackLevel).IBBlockstunMod);
+        }
+
+        /// <summary>Air blockstun (normal air block).</summary>
+        public int GetAirBlockstun() {
+            return AttackLevelData.Get(AttackLevel).AirBlockstun;
+        }
+
+        /// <summary>Air blockstun during Faultless Defense.</summary>
+        public int GetAirFDBlockstun() {
+            var props = AttackLevelData.Get(AttackLevel);
+            return props.AirBlockstun + props.AirFDBlockstunMod;
+        }
+
+        /// <summary>Air blockstun during Instant Block.</summary>
+        public int GetAirIBBlockstun() {
+            var props = AttackLevelData.Get(AttackLevel);
+            return Mathf.Max(1, props.AirBlockstun + props.AirIBBlockstunMod);
+        }
+
+        /// <summary>
+        /// Untechable time on air hit. Doubled on counter hit per GGACR rules.
+        /// Pass counterHit = true for the doubled value.
+        /// </summary>
+        public int GetUntechableTime(bool counterHit = false) {
+            int baseTime;
+            if (UntechableTimeOverride > 0)
+                baseTime = UntechableTimeOverride;
+            else
+                baseTime = AttackLevelData.Get(AttackLevel).UntechableTime;
+
+            return counterHit ? baseTime * 2 : baseTime;
+        }
+
+        /// <summary>Guard balance damage on block (depends on attack height).</summary>
+        public int GetGuardBalanceDamage(AttackHeight height) {
+            var props = AttackLevelData.Get(AttackLevel);
+            if (height == AttackHeight.Mid)
+                return props.GuardBalanceMid;
+            return props.GuardBalanceHighLow;
+        }
+
+        // ---- Legacy convenience wrappers ----
+        // These map old call sites to the new GGACR-accurate methods.
+
+        /// <summary>Attacker hitstop = base hitstop (symmetric in GGACR).</summary>
+        public int GetAttackerHitstop() => GetHitstop();
+
+        /// <summary>Defender hitstop on hit = base hitstop (CH bonus added separately by MatchManager).</summary>
+        public int GetDefenderHitstop() => GetHitstop();
+
+        /// <summary>Defender blockstop = blockstop.</summary>
+        public int GetDefenderBlockstop() => GetBlockstop();
+
+        /// <summary>Default hitstun (standing). Use GetStandingHitstun/GetCrouchingHitstun for precision.</summary>
+        public int GetHitstun() => GetStandingHitstun();
     }
 
     /// <summary>
@@ -121,8 +200,18 @@ namespace FightingGame.Data {
         [Tooltip("Stun meter damage (dizzy).")]
         [Min(0)] public int StunDamage;
 
-        [Tooltip("Combo damage scaling multiplier (1.0 = no extra scaling).")]
+        [Tooltip("Per-hit combo damage scaling multiplier (1.0 = no extra scaling per hit).")]
         [Range(0f, 1f)] public float DamageScaling;
+
+        [Tooltip("INITIAL (forced) combo proration. When this move STARTS a combo, " +
+                 "all subsequent hits are scaled to this percentage.\n\n" +
+                 "1.0 = no forced proration (most normals).\n" +
+                 "0.8 = 80% forced proration (e.g. 2P).\n" +
+                 "0.6 = 60% forced proration (e.g. f.S launcher).\n\n" +
+                 "In GGACR, forced proration only applies when the move is the " +
+                 "FIRST hit of the combo. It does NOT stack with per-hit scaling — " +
+                 "it SETS the starting scale floor.")]
+        [Range(0f, 1f)] public float InitialProration;
 
         [Tooltip("Super meter gained on hit.")]
         [Min(0)] public int MeterGainOnHit;
@@ -152,7 +241,14 @@ namespace FightingGame.Data {
         [Tooltip("If kara-cancel is allowed, how many startup frames are cancellable (typically 1-2).")]
         [Range(0, 3)] public int KaraCancelFrames;
 
-        [Tooltip("Can cancel into super regardless of MaxCancelLevel.")]
+        [Tooltip("Can this move be jump-cancelled on hit? (GGXX: common for normals.)")]
+        public bool AllowJumpCancel;
+
+        [Tooltip("Can this move be jump-cancelled on block? (Less common.)")]
+        public bool AllowJumpCancelOnBlock;
+
+        [Tooltip("Can cancel into super regardless of MaxCancelLevel.\n" +
+                 "Common for normals that should be super-cancellable but not special-cancellable.")]
         public bool AlwaysSuperCancellable;
 
         /// <summary>

@@ -1,15 +1,15 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace FightingGame.Data {
     /// <summary>
     /// Defines the input required to perform a move.
-    /// Supports both classic motions (QCF, DP, charge) and
+    /// Supports both classic motions (QCF, QCB, DP, charge) and
     /// arbitrary custom sequences.
     /// </summary>
     [Serializable]
     public struct MotionInput {
-        [Tooltip("The type of motion � determines which parser algorithm is used.")]
+        [Tooltip("The type of motion — determines which parser algorithm is used.")]
         public MotionType Type;
 
         [Tooltip("Which button completes the input.")]
@@ -41,33 +41,50 @@ namespace FightingGame.Data {
                     return Array.Empty<NumpadDirection>();
 
                 case MotionType.DirectionPlusButton:
-                    // Caller should check the required direction on MoveData
                     return Array.Empty<NumpadDirection>();
 
-                case MotionType.QuarterCircle:
-                    // Covers both QCF (236) and QCB (214) �
-                    // we always store as "forward" and the detector
-                    // already flips based on facing.
+                case MotionType.QuarterCircleForward:
+                    // 236: Down → DownForward → Forward
                     return new[] {
                         NumpadDirection.Down,
                         NumpadDirection.DownForward,
                         NumpadDirection.Forward
                     };
 
+                case MotionType.QuarterCircleBack:
+                    // 214: Down → DownBack → Back
+                    return new[] {
+                        NumpadDirection.Down,
+                        NumpadDirection.DownBack,
+                        NumpadDirection.Back
+                    };
+
                 case MotionType.DragonPunch:
+                    // 623: Forward → Down → DownForward
                     return new[] {
                         NumpadDirection.Forward,
                         NumpadDirection.Down,
                         NumpadDirection.DownForward
                     };
 
-                case MotionType.HalfCircle:
+                case MotionType.HalfCircleForward:
+                    // 41236: Back → DownBack → Down → DownForward → Forward
                     return new[] {
                         NumpadDirection.Back,
                         NumpadDirection.DownBack,
                         NumpadDirection.Down,
                         NumpadDirection.DownForward,
                         NumpadDirection.Forward
+                    };
+
+                case MotionType.HalfCircleBack:
+                    // 63214: Forward → DownForward → Down → DownBack → Back
+                    return new[] {
+                        NumpadDirection.Forward,
+                        NumpadDirection.DownForward,
+                        NumpadDirection.Down,
+                        NumpadDirection.DownBack,
+                        NumpadDirection.Back
                     };
 
                 case MotionType.FullCircle:
@@ -83,6 +100,7 @@ namespace FightingGame.Data {
                     };
 
                 case MotionType.DoubleQuarterCircle:
+                    // 236236: super motion
                     return new[] {
                         NumpadDirection.Down,
                         NumpadDirection.DownForward,
@@ -94,8 +112,6 @@ namespace FightingGame.Data {
 
                 case MotionType.ChargeBack:
                 case MotionType.ChargeDown:
-                    // Charge moves are matched differently (hold check + release),
-                    // sequence isn't walked the same way.
                     return Array.Empty<NumpadDirection>();
 
                 case MotionType.Custom:

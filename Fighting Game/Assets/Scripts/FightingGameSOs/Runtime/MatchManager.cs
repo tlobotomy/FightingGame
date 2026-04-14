@@ -1,42 +1,22 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.InputSystem;
 using FightingGame.Data;
 using FightingGame.ScriptableObjects;
 
 namespace FightingGame.Runtime {
     /// <summary>
-    /// Central game manager for a single match. Owns both players,
-    /// runs the deterministic fixed-timestep loop, and resolves
-    /// all physics (pushboxes) and combat (hitboxes vs hurtboxes)
-    /// AFTER both players have acted each frame.
+    /// Central game manager for a single match.
     ///
-    /// ROUND SYSTEM:
-    ///   Best of 3 (first to 2 round wins). Each round:
-    ///     1. RoundIntro — banner "ROUND N", players can't act
-    ///     2. RoundFight — banner "FIGHT!", brief pause then gameplay
-    ///     3. Playing — normal gameplay with timer countdown
-    ///     4. KO — a player's health hit 0 or timer ran out
-    ///     5. RoundEnd — KO banner, brief pause, then reset or match end
-    ///     6. MatchEnd — "YOU WIN" banner, match is over
-    ///
-    ///   Between rounds: health resets, meter carries over, positions reset.
-    ///
-    /// GGXX HITSTOP MODEL:
-    ///   Hitstop is per-player, not global. On hit:
-    ///     - Attacker freezes for FrameData.GetAttackerHitstop() frames.
-    ///     - Defender freezes for FrameData.GetDefenderHitstop() (on hit)
-    ///       or FrameData.GetDefenderBlockstop() (on block) frames.
-    ///
-    /// PLAYER SPAWNING:
-    ///   Unlike the menu scenes, the battle scene does NOT use a
-    ///   PlayerInputManager. Instead, MatchManager manually instantiates
-    ///   both BattlePlayer prefabs on Start and pairs each with the
-    ///   correct input device using MatchSettings.PlayerDeviceIds.
-    ///
-    /// Setup:
-    ///   - Place on a GameObject in the battle scene.
-    ///   - Assign BattlePlayerPrefab, BattleUI, and BattleCamera in inspector.
-    ///   - The prefab must have: PlayerInput, InputDetector, PlayerController.
+    /// FIXED IN THIS VERSION:
+    ///   - Crouch-back now blocks mid attacks (down-back = valid standing block).
+    ///   - Proximity normals: checks distance to decide close vs far slash/HS.
+    ///   - Projectiles are ticked and resolved alongside players.
+    ///   - Juggle limit enforcement on airborne opponents.
+    ///   - Super flash freeze (brief game-freeze before super executes).
+    ///   - Screen shake on heavy hits.
+    ///   - Counter hit detection (hitting during startup).
+    ///   - Combo counter sent to UI each hit.
     /// </summary>
     public class MatchManager : MonoBehaviour {
         // ──────────────────────────────────────
@@ -44,11 +24,9 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         [Header("Player Prefab")]
-        [Tooltip("The universal battle player prefab (PlayerInput + InputDetector + PlayerController).")]
         public GameObject BattlePlayerPrefab;
 
         [Header("Fallback Characters (for testing without CharSelect)")]
-        [Tooltip("If MatchSettings has no character for P1, use this.")]
         public CharacterData FallbackP1Character;
         public CharacterData FallbackP2Character;
 
@@ -58,33 +36,32 @@ namespace FightingGame.Runtime {
         public float GroundY = 0f;
 
         [Header("Spawn Points")]
-        [Tooltip("Where P1 and P2 appear. Element 0 = P1, Element 1 = P2.")]
         public Transform[] SpawnPoints;
 
         [Header("Round Settings")]
-        [Tooltip("Rounds needed to win the match.")]
         [Min(1)] public int RoundsToWin = 2;
-
-        [Tooltip("Round timer in seconds (99 standard).")]
         public int RoundTimeSeconds = 99;
-
-        [Tooltip("Frames of intro banner before 'FIGHT!' (60 = 1 second).")]
         public int IntroDelayFrames = 90;
-
-        [Tooltip("Frames the 'FIGHT!' banner stays up.")]
         public int FightBannerFrames = 60;
-
-        [Tooltip("Frames of KO slowdown before the round-end sequence.")]
         public int KOFreezeFrames = 120;
-
-        [Tooltip("Frames between rounds (after KO banner, before next round intro).")]
         public int BetweenRoundFrames = 60;
 
-        [Header("UI & Camera")]
-        [Tooltip("Reference to the BattleUIManager in the scene.")]
-        public BattleUIManager BattleUI;
+        [Header("Proximity Normal Distance")]
+        [Tooltip("If players are within this distance, close normals are used.")]
+        public float CloseNormalRange = 1.2f;
 
-        [Tooltip("Reference to the BattleCameraController in the scene.")]
+        [Header("Super Flash")]
+        [Tooltip("Frames of game-freeze when a super activates.")]
+        public int SuperFlashFrames = 30;
+
+        [Header("Screen Shake")]
+        [Tooltip("Shake intensity on heavy hits (attack level 4+).")]
+        public float HeavyShakeIntensity = 0.15f;
+        [Tooltip("Shake duration in frames.")]
+        public int ShakeDurationFrames = 8;
+
+        [Header("UI & Camera")]
+        public BattleUIManager BattleUI;
         public BattleCameraController BattleCamera;
 
         [Header("Stage Visuals")]
@@ -98,12 +75,13 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         public enum MatchPhase {
-            RoundIntro,     // "ROUND 1" banner, players frozen
-            RoundFight,     // "FIGHT!" banner, brief pause
-            Playing,        // Gameplay active
-            KO,             // KO freeze
-            RoundEnd,       // Pause between rounds
-            MatchEnd        // Match is over
+            RoundIntro,
+            RoundFight,
+            Playing,
+            SuperFlash,   // brief freeze for super activation
+            KO,
+            RoundEnd,
+            MatchEnd
         }
 
         [Header("Debug (read-only)")]
@@ -120,21 +98,41 @@ namespace FightingGame.Runtime {
         private int _gameFrame;
         private int[] _roundWins = new int[2];
 
-        // Round timer (counts down in game frames; 60 frames = 1 second)
         private int _roundTimerFrames;
         private int _lastDisplayedSecond = -1;
 
-        // Track which moves have already connected
         private MoveData[] _lastMoveHit = new MoveData[2];
-
-        // Who won the current round (-1 = undecided, 0 = P1, 1 = P2, 2 = draw)
         private int _roundWinner = -1;
+
+        // Projectile tracking
+        private List<Projectile> _activeProjectiles = new List<Projectile>();
+
+        // Screen shake
+        private int _shakeFramesRemaining;
+        private float _shakeIntensity;
+
+        // Super flash state
+        private int _superFlashPlayerIndex; // who triggered the super
+
+        // Proximity check cache
+        private float _playerDistance;
 
         /// <summary>Read-only access to players for UI/camera.</summary>
         public PlayerController GetPlayer(int index) => _players[index];
         public int GameFrame => _gameFrame;
         public MatchPhase Phase => _phase;
         public int CurrentRound => _currentRound;
+
+        /// <summary>
+        /// Distance between the two players. Updated every frame.
+        /// Used by PlayerController for proximity normal resolution.
+        /// </summary>
+        public float PlayerDistance => _playerDistance;
+
+        /// <summary>
+        /// Whether close normals should be used based on proximity.
+        /// </summary>
+        public bool InCloseRange => _playerDistance <= CloseNormalRange;
 
         // ──────────────────────────────────────
         //  LIFECYCLE
@@ -168,7 +166,6 @@ namespace FightingGame.Runtime {
                     BGMSource = gameObject.AddComponent<AudioSource>();
                     BGMSource.playOnAwake = false;
                 }
-
                 BGMSource.clip = stage.BGM;
                 BGMSource.loop = stage.BGMLoop;
                 BGMSource.volume = stage.BGMVolume;
@@ -211,10 +208,9 @@ namespace FightingGame.Runtime {
             int deviceId = MatchSettings.PlayerDeviceIds[playerIndex];
             if (deviceId == 0) return null;
 
-            foreach (var device in InputSystem.devices) {
+            foreach (var device in InputSystem.devices)
                 if (device.deviceId == deviceId)
                     return device;
-            }
 
             Debug.LogWarning($"[MatchManager] Device ID {deviceId} for P{playerIndex + 1} not found.");
             return null;
@@ -243,18 +239,14 @@ namespace FightingGame.Runtime {
             if (character != null)
                 controller.Character = character;
 
-            Debug.Log($"[MatchManager] P{idx + 1} — Character: " +
-                $"{(controller.Character != null ? controller.Character.CharacterName : "NULL")}, " +
-                $"Device: {(playerInput != null && playerInput.devices.Count > 0 ? playerInput.devices[0].displayName : "none")}");
-
             detector.FacingSign = (idx == 0) ? 1 : -1;
 
             if (SpawnPoints != null && idx < SpawnPoints.Length && SpawnPoints[idx] != null)
                 controller.transform.position = SpawnPoints[idx].position;
 
             controller.Initialize();
+            controller.SetMatchManager(this, idx);
 
-            // Spawn character visual prefab as child
             if (controller.Character != null && controller.Character.CharacterPrefab != null) {
                 var visual = Instantiate(controller.Character.CharacterPrefab, controller.transform);
 
@@ -269,7 +261,11 @@ namespace FightingGame.Runtime {
                     animator = null;
                 }
 
-                controller.SetVisualReferences(animator, audioSource);
+                // Find optional VFXSpawnPoint and Shadow children by name
+                Transform vfxPoint = visual.transform.Find("VFXSpawnPoint");
+                Transform shadow = visual.transform.Find("Shadow");
+
+                controller.SetVisualReferences(animator, audioSource, vfxPoint, shadow);
 
                 int palette = MatchSettings.SelectedPalettes[idx];
                 if (controller.Character.ColorPalettes != null
@@ -302,7 +298,7 @@ namespace FightingGame.Runtime {
                     action.canceled += callback;
                 }
                 else {
-                    Debug.LogWarning($"[MatchManager] Action '{actionName}' not found in input asset.");
+                    Debug.LogWarning($"[MatchManager] Action '{actionName}' not found.");
                 }
             }
 
@@ -318,10 +314,6 @@ namespace FightingGame.Runtime {
         //  ROUND MANAGEMENT
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Begins a new round. Resets health, positions, and starts the
-        /// intro sequence. Meter carries over between rounds.
-        /// </summary>
         private void StartRound() {
             _roundWinner = -1;
             _roundTimerFrames = RoundTimeSeconds * 60;
@@ -329,29 +321,27 @@ namespace FightingGame.Runtime {
             _lastMoveHit[0] = null;
             _lastMoveHit[1] = null;
 
-            // Reset players for new round (meter carries over)
+            // Destroy lingering projectiles
+            foreach (var proj in _activeProjectiles)
+                if (proj != null) Destroy(proj.gameObject);
+            _activeProjectiles.Clear();
+
             for (int i = 0; i < 2; i++) {
                 if (_players[i] == null) continue;
-
-                int savedMeter = _players[i].Meter;
                 _players[i].ResetForNewRound(keepMeter: true);
 
-                // Reposition
                 if (SpawnPoints != null && i < SpawnPoints.Length && SpawnPoints[i] != null)
                     _players[i].transform.position = SpawnPoints[i].position;
 
-                // Reset facing
                 _detectors[i].FacingSign = (i == 0) ? 1 : -1;
                 Vector3 scale = _players[i].transform.localScale;
                 scale.x = Mathf.Abs(scale.x) * _detectors[i].FacingSign;
                 _players[i].transform.localScale = scale;
             }
 
-            // Snap camera to reset position
             if (BattleCamera != null)
                 BattleCamera.SnapToTarget();
 
-            // Start intro sequence
             SetPhase(MatchPhase.RoundIntro);
 
             if (BattleUI != null) {
@@ -360,8 +350,6 @@ namespace FightingGame.Runtime {
                 BattleUI.SetP1RoundWins(_roundWins[0]);
                 BattleUI.SetP2RoundWins(_roundWins[1]);
             }
-
-            Debug.Log($"[MatchManager] === ROUND {_currentRound} START ===");
         }
 
         private void SetPhase(MatchPhase newPhase) {
@@ -382,27 +370,27 @@ namespace FightingGame.Runtime {
                 case MatchPhase.RoundIntro:
                     TickRoundIntro();
                     break;
-
                 case MatchPhase.RoundFight:
                     TickRoundFight();
                     break;
-
                 case MatchPhase.Playing:
                     TickPlaying();
                     break;
-
+                case MatchPhase.SuperFlash:
+                    TickSuperFlash();
+                    break;
                 case MatchPhase.KO:
                     TickKO();
                     break;
-
                 case MatchPhase.RoundEnd:
                     TickRoundEnd();
                     break;
-
                 case MatchPhase.MatchEnd:
-                    // Match is over — do nothing (or return to menu)
                     break;
             }
+
+            // Screen shake (runs during any phase)
+            ApplyScreenShake();
         }
 
         // ──────────────────────────────────────
@@ -410,7 +398,6 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         private void TickRoundIntro() {
-            // Players frozen during intro
             if (_phaseTimer >= IntroDelayFrames) {
                 SetPhase(MatchPhase.RoundFight);
                 if (BattleUI != null)
@@ -419,18 +406,38 @@ namespace FightingGame.Runtime {
         }
 
         private void TickRoundFight() {
-            if (_phaseTimer >= FightBannerFrames) {
+            if (_phaseTimer >= FightBannerFrames)
                 SetPhase(MatchPhase.Playing);
-                Debug.Log("[MatchManager] FIGHT!");
-            }
         }
 
         private void TickPlaying() {
             _gameFrame++;
 
+            // --- UPDATE PROXIMITY ---
+            _playerDistance = Mathf.Abs(
+                _players[0].transform.position.x - _players[1].transform.position.x);
+
             // --- TICK BOTH PLAYERS ---
             _players[0].GameTick();
             _players[1].GameTick();
+
+            // --- RECORD BLOCK INPUT FOR IB TIMING ---
+            // When a player transitions to a blocking state (holding back),
+            // record the frame so IB window can be checked on hit.
+            for (int i = 0; i < 2; i++) {
+                var state = _players[i].State;
+                if (state == PlayerController.PlayerState.WalkBack
+                    || (state == PlayerController.PlayerState.Crouching
+                        && CheckDirectionHeld(i, DirectionInput.Back))) {
+                    _players[i].RecordBlockInput(_gameFrame);
+                }
+            }
+
+            // --- THROW TECH RESOLUTION ---
+            ResolveThrows();
+
+            // --- TICK PROJECTILES ---
+            TickProjectiles();
 
             // --- PUSHBOX RESOLUTION ---
             if (!_players[0].InHitstop && !_players[1].InHitstop)
@@ -438,6 +445,9 @@ namespace FightingGame.Runtime {
 
             // --- HITBOX vs HURTBOX ---
             ResolveHitboxes();
+
+            // --- PROJECTILE vs PLAYER ---
+            ResolveProjectileHits();
 
             // --- UPDATE FACING ---
             UpdateFacing();
@@ -460,37 +470,34 @@ namespace FightingGame.Runtime {
             CheckWinConditions();
         }
 
+        private void TickSuperFlash() {
+            // During super flash, NOTHING moves — both players and projectiles freeze.
+            // The camera can zoom/pan to the super user if desired.
+            if (_phaseTimer >= SuperFlashFrames) {
+                SetPhase(MatchPhase.Playing);
+            }
+        }
+
         private void TickKO() {
             if (_phaseTimer >= KOFreezeFrames) {
-                // Award round win
                 if (_roundWinner == 0 || _roundWinner == 1) {
                     _roundWins[_roundWinner]++;
-
                     if (BattleUI != null) {
                         BattleUI.SetP1RoundWins(_roundWins[0]);
                         BattleUI.SetP2RoundWins(_roundWins[1]);
                     }
-
-                    Debug.Log($"[MatchManager] Round {_currentRound} winner: P{_roundWinner + 1} " +
-                        $"(Score: P1={_roundWins[0]}, P2={_roundWins[1]})");
                 }
                 else if (_roundWinner == 2) {
-                    // Double KO — both get a win (GGXX behavior)
                     _roundWins[0]++;
                     _roundWins[1]++;
-
                     if (BattleUI != null) {
                         BattleUI.SetP1RoundWins(_roundWins[0]);
                         BattleUI.SetP2RoundWins(_roundWins[1]);
                     }
-
-                    Debug.Log($"[MatchManager] Round {_currentRound}: DOUBLE KO!");
                 }
 
-                // Check if match is over
                 if (_roundWins[0] >= RoundsToWin || _roundWins[1] >= RoundsToWin) {
                     SetPhase(MatchPhase.MatchEnd);
-
                     string winner;
                     if (_roundWins[0] >= RoundsToWin && _roundWins[1] >= RoundsToWin)
                         winner = "DRAW GAME";
@@ -501,11 +508,8 @@ namespace FightingGame.Runtime {
 
                     if (BattleUI != null)
                         BattleUI.ShowBanner(winner, 5f);
-
-                    Debug.Log($"[MatchManager] === MATCH OVER: {winner} ===");
                 }
                 else {
-                    // More rounds to play
                     SetPhase(MatchPhase.RoundEnd);
                 }
             }
@@ -515,6 +519,45 @@ namespace FightingGame.Runtime {
             if (_phaseTimer >= BetweenRoundFrames) {
                 _currentRound++;
                 StartRound();
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  SUPER FLASH
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Called externally or internally when a super activates.
+        /// Freezes the game for SuperFlashFrames.
+        /// </summary>
+        public void TriggerSuperFlash(int playerIndex) {
+            _superFlashPlayerIndex = playerIndex;
+            SetPhase(MatchPhase.SuperFlash);
+
+            if (BattleUI != null)
+                BattleUI.ShowBanner("", 0.1f); // brief flash effect — customize as needed
+        }
+
+        // ──────────────────────────────────────
+        //  SCREEN SHAKE
+        // ──────────────────────────────────────
+
+        public void TriggerScreenShake(float intensity, int durationFrames) {
+            _shakeIntensity = intensity;
+            _shakeFramesRemaining = durationFrames;
+        }
+
+        private void ApplyScreenShake() {
+            if (BattleCamera == null) return;
+
+            if (_shakeFramesRemaining > 0) {
+                _shakeFramesRemaining--;
+                float t = (float)_shakeFramesRemaining / ShakeDurationFrames;
+                float offset = Random.Range(-_shakeIntensity, _shakeIntensity) * t;
+                Vector3 camPos = BattleCamera.transform.position;
+                camPos.y += offset;
+                camPos.x += Random.Range(-_shakeIntensity * 0.5f, _shakeIntensity * 0.5f) * t;
+                BattleCamera.transform.position = camPos;
             }
         }
 
@@ -530,29 +573,24 @@ namespace FightingGame.Runtime {
             bool timeUp = _roundTimerFrames <= 0;
 
             if (p1Dead && p2Dead) {
-                // Double KO
                 _roundWinner = 2;
                 TriggerKO("DOUBLE KO");
             }
             else if (p1Dead) {
-                _roundWinner = 1; // P2 wins
+                _roundWinner = 1;
                 TriggerKO("KO");
             }
             else if (p2Dead) {
-                _roundWinner = 0; // P1 wins
+                _roundWinner = 0;
                 TriggerKO("KO");
             }
             else if (timeUp) {
-                // Time over — player with more health wins
                 int p1Health = _players[0].Health;
                 int p2Health = _players[1].Health;
 
-                if (p1Health > p2Health)
-                    _roundWinner = 0;
-                else if (p2Health > p1Health)
-                    _roundWinner = 1;
-                else
-                    _roundWinner = 2; // Draw
+                if (p1Health > p2Health) _roundWinner = 0;
+                else if (p2Health > p1Health) _roundWinner = 1;
+                else _roundWinner = 2;
 
                 TriggerKO("TIME");
             }
@@ -560,11 +598,8 @@ namespace FightingGame.Runtime {
 
         private void TriggerKO(string bannerText) {
             SetPhase(MatchPhase.KO);
-
             if (BattleUI != null)
                 BattleUI.ShowBanner(bannerText, KOFreezeFrames / 60f);
-
-            Debug.Log($"[MatchManager] {bannerText}!");
         }
 
         // ──────────────────────────────────────
@@ -600,10 +635,8 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         private void ResolveHitboxes() {
-            for (int attacker = 0; attacker < 2; attacker++) {
-                int defender = 1 - attacker;
-                ResolveAttack(attacker, defender);
-            }
+            for (int attacker = 0; attacker < 2; attacker++)
+                ResolveAttack(attacker, 1 - attacker);
         }
 
         private void ResolveAttack(int attackerIdx, int defenderIdx) {
@@ -617,6 +650,10 @@ namespace FightingGame.Runtime {
             if (_lastMoveHit[attackerIdx] == atk.CurrentMove && atk.CurrentMove.HitCount <= 1)
                 return;
 
+            // --- JUGGLE LIMIT CHECK ---
+            if (!def.CanBeJuggled(atk.CurrentMove))
+                return;
+
             Rect[] hitRects = GetActiveHitboxRects(atk);
             if (hitRects == null || hitRects.Length == 0) return;
 
@@ -625,6 +662,9 @@ namespace FightingGame.Runtime {
 
             HurtboxLayout defLayout = GetActiveHurtboxLayout(def);
             if (defLayout.Invincible) return;
+
+            // Check defender invincibility (backdash, etc.)
+            if (def.IsInvincible) return;
 
             bool hit = false;
             foreach (var hitRect in hitRects) {
@@ -649,28 +689,246 @@ namespace FightingGame.Runtime {
                 return;
             }
 
-            // Apply hit/block to defender
-            def.TakeHit(atk.CurrentMove, blocked);
+            // --- DETERMINE BLOCK TYPE (FD / IB / NORMAL) ---
+            BlockType blockType = BlockType.Normal;
 
-            // --- GGXX PER-PLAYER HITSTOP ---
-            FrameData frames = atk.CurrentMove.Frames;
-            int attackerHitstop = frames.GetAttackerHitstop();
-            int defenderHitstop = blocked
-                ? frames.GetDefenderBlockstop()
-                : frames.GetDefenderHitstop();
-
-            atk.ApplyHitstop(attackerHitstop);
-            def.ApplyHitstop(defenderHitstop);
-
-            // --- TENSION GAIN ---
             if (blocked) {
-                atk.AddMeter(atk.Character.TensionGainOnBlock);
+                // Check Instant Block first — block input must have been within
+                // the IB window (recorded by RecordBlockInput earlier).
+                def.CheckInstantBlock(_gameFrame);
+
+                if (def.WasInstantBlocked) {
+                    blockType = BlockType.InstantBlock;
+                }
+                // Check Faultless Defense — holding 2+ buttons while blocking with meter.
+                // FD takes precedence over normal block but not over IB.
+                else {
+                    InputFrame defInput = def.LastInput;
+                    int heldCount = 0;
+                    if (defInput.HeldButtons.HasFlag(ButtonFlags.Punch)) heldCount++;
+                    if (defInput.HeldButtons.HasFlag(ButtonFlags.Kick)) heldCount++;
+                    if (defInput.HeldButtons.HasFlag(ButtonFlags.Slash)) heldCount++;
+                    if (defInput.HeldButtons.HasFlag(ButtonFlags.HeavySlash)) heldCount++;
+                    if (defInput.HeldButtons.HasFlag(ButtonFlags.Dust)) heldCount++;
+
+                    if (heldCount >= 2 && def.Meter > 0)
+                        blockType = BlockType.FaultlessDefense;
+                }
+            }
+
+            // --- COUNTER HIT CHECK ---
+            bool counterHit = !blocked && (
+                def.State == PlayerController.PlayerState.Startup ||
+                def.State == PlayerController.PlayerState.Recovery);
+
+            // --- GUARD CRUSH CHECK ---
+            // If the move is unblockable and was "blocked", it actually guard-crushes
+            if (blocked && atk.CurrentMove.Height == AttackHeight.Unblockable) {
+                def.ApplyGuardCrush();
+                // Treat as a hit for damage purposes
+                def.TakeHit(atk.CurrentMove, false, false);
+                _lastMoveHit[attackerIdx] = atk.CurrentMove;
+                return;
+            }
+
+            // Apply hit/block to defender (pass counter hit and block type)
+            def.TakeHit(atk.CurrentMove, blocked, counterHit, blockType);
+
+            // Track juggle points
+            if (def.State == PlayerController.PlayerState.Launched)
+                def.ConsumeJugglePoints(atk.CurrentMove.JuggleCost);
+
+            // --- GGACR PER-PLAYER HITSTOP ---
+            FrameData frames = atk.CurrentMove.Frames;
+            int baseHitstop = frames.GetHitstop();
+
+            if (blocked) {
+                // On block: both players freeze for blockstop frames
+                int blockstop = frames.GetBlockstop();
+                atk.ApplyHitstop(blockstop);
+                def.ApplyHitstop(blockstop);
+
+                // FD pushback multiplier is now applied inside PlayerController.TakeHit
+                // via StartBlockPushback(), which multiplies the initial velocity by
+                // Character.FDPushbackMultiplier when blockType is FaultlessDefense.
             }
             else {
-                atk.AddMeter(atk.Character.TensionGainOnHit);
+                // On hit: symmetric hitstop for both players
+                int attackerHitstop = baseHitstop;
+                int defenderHitstop = baseHitstop;
+
+                // Counter hit: extra hitstop to DEFENDER only (GGACR rules)
+                // CH bonus is halved if move's normal hitstop < bonus, absent if hitstop is 0
+                if (counterHit) {
+                    int chBonus = AttackLevelData.GetCounterHitHitstop(
+                        frames.AttackLevel, baseHitstop);
+                    defenderHitstop += chBonus;
+                }
+
+                atk.ApplyHitstop(attackerHitstop);
+                def.ApplyHitstop(defenderHitstop);
             }
 
+            // --- NOTIFY ATTACKER OF CONNECTION (enables jump cancel, etc.) ---
+            atk.OnMoveConnected(blocked);
+
+            // --- TENSION GAIN ---
+            if (blocked)
+                atk.AddMeter(atk.Character.TensionGainOnBlock);
+            else
+                atk.AddMeter(atk.Character.TensionGainOnHit);
+
             _lastMoveHit[attackerIdx] = atk.CurrentMove;
+
+            // --- SCREEN SHAKE ON HEAVY HITS ---
+            if (frames.AttackLevel >= 4 && !blocked)
+                TriggerScreenShake(HeavyShakeIntensity, ShakeDurationFrames);
+
+            // --- UPDATE UI COMBO COUNTER ---
+            if (!blocked && BattleUI != null)
+                BattleUI.SetComboCount(defenderIdx, def.ComboHitCount);
+        }
+
+        // ──────────────────────────────────────
+        //  PROJECTILE MANAGEMENT
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Registers a projectile for tracking. Called automatically when
+        /// projectiles are found in the scene, or can be called manually.
+        /// </summary>
+        public void RegisterProjectile(Projectile proj) {
+            if (!_activeProjectiles.Contains(proj))
+                _activeProjectiles.Add(proj);
+        }
+
+        private void TickProjectiles() {
+            // Find any new projectiles spawned by players this frame
+            var allProjectiles = FindObjectsByType<Projectile>(FindObjectsSortMode.None);
+            foreach (var proj in allProjectiles) {
+                if (!_activeProjectiles.Contains(proj))
+                    _activeProjectiles.Add(proj);
+            }
+
+            // Tick and clean up
+            for (int i = _activeProjectiles.Count - 1; i >= 0; i--) {
+                if (_activeProjectiles[i] == null || !_activeProjectiles[i].IsAlive) {
+                    _activeProjectiles.RemoveAt(i);
+                    continue;
+                }
+                _activeProjectiles[i].GameTick();
+            }
+
+            // Projectile vs Projectile (cancel out)
+            for (int i = 0; i < _activeProjectiles.Count; i++) {
+                for (int j = i + 1; j < _activeProjectiles.Count; j++) {
+                    var a = _activeProjectiles[i];
+                    var b = _activeProjectiles[j];
+                    if (a.Owner == b.Owner) continue; // same player's projectiles don't clash
+
+                    if (a.GetHitboxRect().Overlaps(b.GetHitboxRect())) {
+                        a.OnProjectileClash();
+                        b.OnProjectileClash();
+                    }
+                }
+            }
+        }
+
+        private void ResolveProjectileHits() {
+            for (int i = _activeProjectiles.Count - 1; i >= 0; i--) {
+                var proj = _activeProjectiles[i];
+                if (proj == null || !proj.IsAlive) continue;
+
+                Rect projRect = proj.GetHitboxRect();
+
+                for (int p = 0; p < 2; p++) {
+                    // Don't hit the player who spawned the projectile
+                    if (proj.Owner == _players[p].gameObject) continue;
+
+                    Rect[] hurtRects = GetActiveHurtboxRects(_players[p]);
+                    if (hurtRects == null) continue;
+
+                    HurtboxLayout layout = GetActiveHurtboxLayout(_players[p]);
+                    if (layout.Invincible || _players[p].IsInvincible) continue;
+
+                    bool hit = false;
+                    foreach (var hurtRect in hurtRects) {
+                        if (projRect.Overlaps(hurtRect)) {
+                            hit = true;
+                            break;
+                        }
+                    }
+
+                    if (hit) {
+                        // Projectile hit confirmed
+                        bool blocked = IsBlockingProjectile(_players[p], proj);
+
+                        // Determine block type for projectile blocks
+                        BlockType projBlockType = BlockType.Normal;
+                        if (blocked) {
+                            _players[p].CheckInstantBlock(_gameFrame);
+                            if (_players[p].WasInstantBlocked) {
+                                projBlockType = BlockType.InstantBlock;
+                            }
+                            else {
+                                InputFrame pInput = _players[p].LastInput;
+                                int hc = 0;
+                                if (pInput.HeldButtons.HasFlag(ButtonFlags.Punch)) hc++;
+                                if (pInput.HeldButtons.HasFlag(ButtonFlags.Kick)) hc++;
+                                if (pInput.HeldButtons.HasFlag(ButtonFlags.Slash)) hc++;
+                                if (pInput.HeldButtons.HasFlag(ButtonFlags.HeavySlash)) hc++;
+                                if (pInput.HeldButtons.HasFlag(ButtonFlags.Dust)) hc++;
+
+                                if (hc >= 2 && _players[p].Meter > 0)
+                                    projBlockType = BlockType.FaultlessDefense;
+                            }
+                        }
+
+                        // Route through TakeProjectileHit for proper hitstun/blockstun
+                        _players[p].TakeProjectileHit(proj, blocked, projBlockType);
+
+                        proj.OnHitConfirmed();
+                        break;
+                    }
+                }
+            }
+        }
+
+        private bool IsBlockingProjectile(PlayerController defender, Projectile proj) {
+            var state = defender.State;
+            int idx = (_players[0] == defender) ? 0 : 1;
+
+            // Air blocking projectiles
+            if (state == PlayerController.PlayerState.Airborne) {
+                bool airBack = CheckDirectionHeld(idx, DirectionInput.Back);
+                if (!airBack) return false;
+
+                switch (proj.Height) {
+                    case AttackHeight.Low:
+                    case AttackHeight.Unblockable:
+                        return false;
+                    default:
+                        return true;
+                }
+            }
+
+            bool holdingBack = state == PlayerController.PlayerState.WalkBack;
+            bool crouchBack = state == PlayerController.PlayerState.Crouching
+                && CheckDirectionHeld(idx, DirectionInput.Back);
+
+            switch (proj.Height) {
+                case AttackHeight.Low:
+                    return crouchBack;
+                case AttackHeight.Overhead:
+                case AttackHeight.High:
+                    return holdingBack;
+                case AttackHeight.Mid:
+                    return holdingBack || crouchBack;
+                case AttackHeight.Unblockable:
+                    return false;
+                default:
+                    return holdingBack || crouchBack;
+            }
         }
 
         // ──────────────────────────────────────
@@ -691,7 +949,6 @@ namespace FightingGame.Runtime {
             foreach (var hbf in move.HitboxFrames) {
                 if (activeFrame >= hbf.StartFrame && activeFrame <= hbf.EndFrame) {
                     if (hbf.Hitboxes == null) continue;
-
                     Rect[] rects = new Rect[hbf.Hitboxes.Length];
                     for (int i = 0; i < hbf.Hitboxes.Length; i++)
                         rects[i] = hbf.Hitboxes[i].GetWorldRect(pos, facing);
@@ -734,6 +991,7 @@ namespace FightingGame.Runtime {
                     return player.Character.CrouchingHurtbox;
                 case PlayerController.PlayerState.Airborne:
                 case PlayerController.PlayerState.PreJump:
+                case PlayerController.PlayerState.Launched:
                     return player.Character.AirborneHurtbox;
                 default:
                     return player.Character.StandingHurtbox;
@@ -754,36 +1012,87 @@ namespace FightingGame.Runtime {
         }
 
         // ──────────────────────────────────────
-        //  BLOCKING
+        //  BLOCKING (FIXED: crouch-back now blocks mid)
         // ──────────────────────────────────────
+
+        /// <summary>
+        /// Checks if the player is holding back on their input.
+        /// Uses InputDetector.LastDirection which is set during Poll()
+        /// and already accounts for facing (Back = away from opponent).
+        /// </summary>
+        private bool IsHoldingBack(PlayerController player) {
+            int idx = (_players[0] == player) ? 0 : 1;
+            return CheckDirectionHeld(idx, DirectionInput.Back);
+        }
 
         private bool IsBlocking(PlayerController defender, MoveData attack) {
             var state = defender.State;
 
+            // States that CAN'T block at all
             if (state == PlayerController.PlayerState.Startup
                 || state == PlayerController.PlayerState.Active
                 || state == PlayerController.PlayerState.Recovery
                 || state == PlayerController.PlayerState.PreJump
                 || state == PlayerController.PlayerState.ParryRecovery
-                || state == PlayerController.PlayerState.Stunned)
+                || state == PlayerController.PlayerState.Stunned
+                || state == PlayerController.PlayerState.Launched
+                || state == PlayerController.PlayerState.Knockdown
+                || state == PlayerController.PlayerState.Wakeup
+                || state == PlayerController.PlayerState.Crumple)
                 return false;
 
+            int idx = (_players[0] == defender) ? 0 : 1;
+
+            // --- AIR BLOCKING ---
+            // In GGXX: airborne defenders can block mids and highs by holding back.
+            // Lows and unblockables cannot be air blocked.
+            if (state == PlayerController.PlayerState.Airborne) {
+                bool airBack = CheckDirectionHeld(idx, DirectionInput.Back);
+                if (!airBack) return false;
+
+                switch (attack.Height) {
+                    case AttackHeight.Low:
+                    case AttackHeight.Unblockable:
+                        return false; // can't air block lows or unblockables
+                    default:
+                        return true; // air block mids, highs, overheads
+                }
+            }
+
+            // --- GROUND BLOCKING ---
             bool holdingBack = state == PlayerController.PlayerState.WalkBack;
+
             bool crouchBlocking = state == PlayerController.PlayerState.Crouching;
+            bool crouchBack = false;
+
+            if (crouchBlocking)
+                crouchBack = CheckDirectionHeld(idx, DirectionInput.Back);
 
             switch (attack.Height) {
                 case AttackHeight.Low:
-                    return crouchBlocking;
+                    return crouchBack; // must be holding down-back to block lows
                 case AttackHeight.Overhead:
                 case AttackHeight.High:
-                    return holdingBack;
+                    return holdingBack; // must be standing back
                 case AttackHeight.Mid:
-                    return holdingBack || crouchBlocking;
+                    return holdingBack || crouchBack;
                 case AttackHeight.Unblockable:
                     return false;
                 default:
-                    return holdingBack || crouchBlocking;
+                    return holdingBack || crouchBack;
             }
+        }
+
+        /// <summary>
+        /// Checks if the given player was holding a specific direction
+        /// on the most recent input frame. Reads from InputDetector.LastDirection,
+        /// which is set during Poll() each game tick.
+        /// </summary>
+        private bool CheckDirectionHeld(int playerIndex, DirectionInput dir) {
+            if (playerIndex < 0 || playerIndex >= _detectors.Length) return false;
+            if (_detectors[playerIndex] == null) return false;
+
+            return _detectors[playerIndex].LastDirection.HasFlag(dir);
         }
 
         // ──────────────────────────────────────
@@ -797,12 +1106,142 @@ namespace FightingGame.Runtime {
 
         private void HandleParry(int attackerIdx, int defenderIdx, MoveData move) {
             var def = _players[defenderIdx];
-
             def.AddMeter(def.Character.ParryMeterGain);
 
             int parryHitstop = def.Character.ParryHitStop;
             _players[attackerIdx].ApplyHitstop(parryHitstop);
             def.ApplyHitstop(parryHitstop);
+        }
+
+        // ──────────────────────────────────────
+        //  THROW TECH RESOLUTION
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Single source of truth for all throw resolution. Called each
+        /// frame during TickPlaying AFTER GameTick (so inputs are fresh).
+        ///
+        /// GGACR throw flow:
+        ///   Frame 0: Attacker inputs throw → enters ThrowStartup, stores target.
+        ///   Frames 1–N (ThrowStartupFrames):
+        ///     - If defender is in an unthrowable state → throw whiffs.
+        ///     - If defender inputs P+K → throw teched, both separate.
+        ///   Frame N+1 (startup expires):
+        ///     - Throw connects → defender enters Thrown, attacker plays throw anim.
+        ///     - Attacker deals throw damage via the throw MoveData.
+        ///
+        /// The defender is NOT locked into a special state during the tech window.
+        /// In GGACR, throws are fast (2–3f startup) so the defender barely has
+        /// time to react — the tech window is what matters, not animation lock.
+        /// </summary>
+        private void ResolveThrows() {
+            for (int i = 0; i < 2; i++) {
+                if (_players[i].State != PlayerController.PlayerState.ThrowStartup)
+                    continue;
+
+                var atk = _players[i];
+                int defIdx = 1 - i;
+                var def = _players[defIdx];
+
+                // --- RANGE CHECK ---
+                // Throws only connect at close range. If the defender moved
+                // out of range, the throw whiffs.
+                float throwRange = CloseNormalRange; // reuse proximity threshold
+                float dist = Mathf.Abs(atk.transform.position.x - def.transform.position.x);
+                if (dist > throwRange) {
+                    atk.OnThrowWhiff();
+                    continue;
+                }
+
+                // --- UNTHROWABLE STATE CHECK ---
+                // Defender can't be thrown if airborne, knocked down, already
+                // thrown, KO'd, invincible, or in their own ThrowStartup
+                // (simultaneous throws = both whiff in GGACR).
+                var defState = def.State;
+                if (defState == PlayerController.PlayerState.Launched
+                    || defState == PlayerController.PlayerState.Knockdown
+                    || defState == PlayerController.PlayerState.AirTeching
+                    || defState == PlayerController.PlayerState.Thrown
+                    || defState == PlayerController.PlayerState.ThrowStartup
+                    || defState == PlayerController.PlayerState.KO
+                    || defState == PlayerController.PlayerState.GuardCrush
+                    || defState == PlayerController.PlayerState.Airborne
+                    || defState == PlayerController.PlayerState.PreJump
+                    || def.IsInvincible) {
+                    atk.OnThrowWhiff();
+                    continue;
+                }
+
+                // --- TECH CHECK ---
+                // Defender can tech during the entire throw startup window
+                // by pressing P+K (same input as initiating a throw).
+                int framesElapsed = _gameFrame - atk.ThrowAttemptFrame;
+                int techWindow = atk.Character.ThrowTechWindow;
+
+                if (framesElapsed <= techWindow) {
+                    InputFrame defInput = def.LastInput;
+                    if (PlayerController.IsThrowTechInput(defInput)) {
+                        // Throw teched — both players push apart
+                        atk.OnThrowTeched();
+                        def.OnThrowTeched();
+                        continue;
+                    }
+                }
+
+                // --- CONNECT CHECK ---
+                // If throw startup frames have elapsed without a tech, it connects.
+                if (framesElapsed >= atk.Character.ThrowStartupFrames) {
+                    // Apply throw damage to defender
+                    MoveData throwMove = atk.CurrentMove;
+
+                    // Defender enters Thrown state — locked for the throw move's total duration
+                    int thrownDuration = (throwMove != null) ? throwMove.Frames.TotalFrames : 30;
+                    def.OnThrown(thrownDuration);
+                    if (throwMove != null) {
+                        int throwDmg = Mathf.RoundToInt(
+                            throwMove.Damage.BaseDamage * def.Character.DefenseModifier);
+                        def.SetHealth(def.Health - throwDmg);
+                    }
+
+                    // Attacker plays the throw animation
+                    atk.ExecuteThrowConnect();
+
+                    // Tension gain for landing a throw
+                    atk.AddMeter(atk.Character.TensionGainOnHit);
+
+                    continue;
+                }
+
+                // Still within startup — do nothing, wait for next frame.
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  PROXIMITY NORMALS
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Returns the correct normal for the given button and stance,
+        /// checking proximity for close normals when applicable.
+        /// Called from outside or can be used by PlayerController.
+        /// </summary>
+        public MoveData GetNormalWithProximity(int playerIndex, ButtonInput button, MoveUsableState stance) {
+            var moveset = _players[playerIndex].Character.Moveset;
+            if (moveset == null) return null;
+
+            // Check proximity for close normals (standing only)
+            if (stance == MoveUsableState.Standing && InCloseRange) {
+                MoveData closeNormal = null;
+                if (button == ButtonInput.Slash && moveset.CloseSlash != null)
+                    closeNormal = moveset.CloseSlash;
+                else if (button == ButtonInput.HeavySlash && moveset.CloseHeavySlash != null)
+                    closeNormal = moveset.CloseHeavySlash;
+
+                if (closeNormal != null)
+                    return closeNormal;
+            }
+
+            return moveset.GetNormal(button, stance);
         }
 
         // ──────────────────────────────────────

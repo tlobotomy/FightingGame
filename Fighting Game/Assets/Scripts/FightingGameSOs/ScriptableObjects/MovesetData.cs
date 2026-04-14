@@ -202,13 +202,8 @@ namespace FightingGame.ScriptableObjects {
         public string Name;
         public MoveData Move;
 
-        [Tooltip("How many meter stocks this super art provides.")]
-        [Min(1)] public int MaxStocks;
-
-        [Tooltip("Meter units per stock.")]
-        [Min(1)] public int MeterPerStock;
-
-        [Tooltip("Meter cost per use (in units, not stocks).")]
+        [Tooltip("Meter cost per use (out of 10000 max tension). " +
+                 "5000 = half bar, 10000 = full bar.")]
         [Min(1)] public int CostPerUse;
     }
 

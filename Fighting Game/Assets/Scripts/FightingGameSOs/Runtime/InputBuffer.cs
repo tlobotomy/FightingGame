@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using FightingGame.Data;
 
@@ -6,27 +6,58 @@ namespace FightingGame.Runtime {
     /// <summary>
     /// Raw snapshot of input state on a single game frame.
     /// Created by InputDetector, stored by InputBuffer, read by InputParser.
+    ///
+    /// MULTI-BUTTON SUPPORT:
+    ///   HeldButtons is a flags enum — multiple buttons can be held simultaneously.
+    ///   PressedButtons tracks which buttons transitioned from up→down THIS frame.
+    ///   ReleasedButtons tracks which buttons transitioned from down→up THIS frame.
+    ///   This fixes the original single-button limitation that broke throw (P+K)
+    ///   and taunt (HS+D) detection.
     /// </summary>
     [Serializable]
     public struct InputFrame {
         public DirectionInput Direction;
-        public ButtonInput Button;
 
-        /// <summary>True only on the frame the button transitions from up to down.</summary>
-        public bool ButtonPressed;
+        /// <summary>All buttons currently held down this frame (flags).</summary>
+        public ButtonFlags HeldButtons;
 
-        /// <summary>True only on the frame the button transitions from down to up (negative edge).</summary>
-        public bool ButtonReleased;
+        /// <summary>Buttons that were JUST pressed this frame (up→down transition).</summary>
+        public ButtonFlags PressedButtons;
+
+        /// <summary>Buttons that were JUST released this frame (down→up transition).</summary>
+        public ButtonFlags ReleasedButtons;
 
         /// <summary>The game frame this was recorded on.</summary>
         public int Frame;
+
+        // ── Legacy compatibility accessors ──
+        // These allow existing code that checks a single Button/ButtonPressed
+        // to still function. They return the highest-priority held/pressed button.
+
+        /// <summary>Legacy: returns the first held button found (for move resolution).</summary>
+        public ButtonInput Button {
+            get {
+                if (HeldButtons.HasFlag(ButtonFlags.Dust)) return ButtonInput.Dust;
+                if (HeldButtons.HasFlag(ButtonFlags.HeavySlash)) return ButtonInput.HeavySlash;
+                if (HeldButtons.HasFlag(ButtonFlags.Slash)) return ButtonInput.Slash;
+                if (HeldButtons.HasFlag(ButtonFlags.Kick)) return ButtonInput.Kick;
+                if (HeldButtons.HasFlag(ButtonFlags.Punch)) return ButtonInput.Punch;
+                return ButtonInput.None;
+            }
+        }
+
+        /// <summary>Legacy: true if ANY button was pressed this frame.</summary>
+        public bool ButtonPressed => PressedButtons != ButtonFlags.None;
+
+        /// <summary>Legacy: true if ANY button was released this frame.</summary>
+        public bool ButtonReleased => ReleasedButtons != ButtonFlags.None;
     }
 
     /// <summary>
     /// Fixed-size ring buffer that stores the last N frames of input.
     /// The parser reads backward through this to match motions.
     ///
-    /// Not a MonoBehaviour � owned and ticked by PlayerController.
+    /// Not a MonoBehaviour — owned and ticked by PlayerController.
     /// </summary>
     public class InputBuffer {
         private readonly InputFrame[] _buffer;
@@ -59,9 +90,7 @@ namespace FightingGame.Runtime {
             return _buffer[index];
         }
 
-        /// <summary>
-        /// Returns the most recent frame.
-        /// </summary>
+        /// <summary>Returns the most recent frame.</summary>
         public InputFrame Current => Count > 0 ? Get(0) : default;
 
         /// <summary>
@@ -75,14 +104,16 @@ namespace FightingGame.Runtime {
         }
 
         /// <summary>
-        /// Was a specific button pressed (not held � the initial press)
-        /// within the last `window` frames?
+        /// Was a specific button pressed (not held — the initial press)
+        /// within the last `window` frames? Uses the new flags-based system.
         /// </summary>
         public bool ButtonPressedInWindow(ButtonInput btn, int window) {
+            ButtonFlags flag = ButtonFlagsUtil.FromSingle(btn);
+            if (flag == ButtonFlags.None) return false;
+
             int limit = Mathf.Min(window, Count);
             for (int i = 0; i < limit; i++) {
-                var f = Get(i);
-                if (f.Button == btn && f.ButtonPressed) return true;
+                if (Get(i).PressedButtons.HasFlag(flag)) return true;
             }
             return false;
         }
@@ -92,10 +123,36 @@ namespace FightingGame.Runtime {
         /// Used for negative edge detection.
         /// </summary>
         public bool ButtonReleasedInWindow(ButtonInput btn, int window) {
+            ButtonFlags flag = ButtonFlagsUtil.FromSingle(btn);
+            if (flag == ButtonFlags.None) return false;
+
             int limit = Mathf.Min(window, Count);
             for (int i = 0; i < limit; i++) {
+                if (Get(i).ReleasedButtons.HasFlag(flag)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Were two specific buttons BOTH pressed within the last `window` frames?
+        /// Used for simultaneous button detection (throw = P+K, taunt = HS+D).
+        /// Both buttons must have a press event within the window, but NOT necessarily
+        /// on the same frame — this handles slight timing differences on hardware.
+        /// </summary>
+        public bool TwoButtonsPressedInWindow(ButtonInput btn1, ButtonInput btn2, int window) {
+            ButtonFlags flag1 = ButtonFlagsUtil.FromSingle(btn1);
+            ButtonFlags flag2 = ButtonFlagsUtil.FromSingle(btn2);
+            if (flag1 == ButtonFlags.None || flag2 == ButtonFlags.None) return false;
+
+            bool found1 = false;
+            bool found2 = false;
+            int limit = Mathf.Min(window, Count);
+
+            for (int i = 0; i < limit; i++) {
                 var f = Get(i);
-                if (f.Button == btn && f.ButtonReleased) return true;
+                if (f.PressedButtons.HasFlag(flag1)) found1 = true;
+                if (f.PressedButtons.HasFlag(flag2)) found2 = true;
+                if (found1 && found2) return true;
             }
             return false;
         }

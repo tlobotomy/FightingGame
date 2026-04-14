@@ -14,29 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
   MovesetName: Diva Moveset
   StandPunch: {fileID: 11400000, guid: 9acd3c27ca8c530418053f38cfa63ad8, type: 2}
-  StandKick: {fileID: 0}
-  StandSlash: {fileID: 0}
-  StandHeavySlash: {fileID: 0}
-  CrouchPunch: {fileID: 0}
-  CrouchKick: {fileID: 0}
-  CrouchSlash: {fileID: 0}
-  CrouchHeavySlash: {fileID: 0}
-  JumpPunch: {fileID: 0}
-  JumpKick: {fileID: 0}
-  JumpSlash: {fileID: 0}
-  JumpHeavySlash: {fileID: 0}
-  StandDust: {fileID: 0}
-  CrouchDust: {fileID: 0}
-  JumpDust: {fileID: 0}
-  CloseSlash: {fileID: 0}
-  CloseHeavySlash: {fileID: 0}
+  StandKick: {fileID: 11400000, guid: dc29b38b3aee04947823ce7d0d5595ee, type: 2}
+  StandSlash: {fileID: 11400000, guid: 5266f548ecc7b71418072ca9251dbf54, type: 2}
+  StandHeavySlash: {fileID: 11400000, guid: 80cd2d495136937469e8f7ed8011a764, type: 2}
+  CrouchPunch: {fileID: 11400000, guid: 4c662c942fcd05b478dd728d23837bdc, type: 2}
+  CrouchKick: {fileID: 11400000, guid: 5c809d19917f99b4a97f99d75e50912e, type: 2}
+  CrouchSlash: {fileID: 11400000, guid: 2eff41e6c121bd74e9a7b25ce909b1c0, type: 2}
+  CrouchHeavySlash: {fileID: 11400000, guid: d1e1ad26bac03c54794fac1c26ddf11e, type: 2}
+  JumpPunch: {fileID: 11400000, guid: 8b9dcf468088e3748ab21fc32dec565a, type: 2}
+  JumpKick: {fileID: 11400000, guid: bbdc8eed330266646916280c56e01210, type: 2}
+  JumpSlash: {fileID: 11400000, guid: 50d275e6af688cb498461e8a601a36c2, type: 2}
+  JumpHeavySlash: {fileID: 11400000, guid: 36f7212a921bb194dac9195308020dc6, type: 2}
+  StandDust: {fileID: 11400000, guid: 8e908e9e45b0836479814e2ca9b73952, type: 2}
+  CrouchDust: {fileID: 11400000, guid: 54cca1e39021fca4199a304188e864ea, type: 2}
+  JumpDust: {fileID: 11400000, guid: 0bc576e18351bf641908c3688775ea7d, type: 2}
+  CloseSlash: {fileID: 11400000, guid: 4074045c6a37aa64cbeeefac303c00d9, type: 2}
+  CloseHeavySlash: {fileID: 11400000, guid: 308af06744a07364d9aa807c45f187a0, type: 2}
   CommandNormals: []
   Specials: []
   EXSpecials: []
   SuperArts: []
-  ForwardThrow: {fileID: 0}
-  BackThrow: {fileID: 0}
-  Dash: {fileID: 0}
-  BackDash: {fileID: 0}
-  Taunt: {fileID: 0}
+  ForwardThrow: {fileID: 11400000, guid: f9acf23fc4a8f4d4d9355dd32df5d0b4, type: 2}
+  BackThrow: {fileID: 11400000, guid: 4569f45bd01a82b47b8679cfd1b4f75c, type: 2}
+  Taunt: {fileID: 11400000, guid: 7b6dd89521bcc8f47bd6e3986d40ee30, type: 2}
   TargetCombos: []

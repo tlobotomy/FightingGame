@@ -108,6 +108,36 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("Pushback modifier when blocking (affects how far back they slide).")]
         [Range(0.5f, 1.5f)] public float BlockPushbackModifier = 1.0f;
 
+        [Tooltip("FD pushback multiplier on top of BlockPushbackModifier (GGXX FD pushes further).")]
+        [Range(1f, 3f)] public float FDPushbackMultiplier = 1.5f;
+
+        [Tooltip("Instant Block window in frames (how early before the hit you must block).")]
+        [Min(1)] public int InstantBlockWindow = 8;
+
+        [Header("Guard Crush")]
+        [Tooltip("Frames of stagger when guard crush occurs (from unblockable or guard break moves).")]
+        [Min(1)] public int GuardCrushStaggerFrames = 40;
+
+        [Header("Throw")]
+        [Tooltip("Throw startup frames (opponent can tech during this window).")]
+        [Min(1)] public int ThrowStartupFrames = 3;
+
+        [Tooltip("Throw tech window — frames the defender has to input throw to escape.")]
+        [Min(1)] public int ThrowTechWindow = 10;
+
+        [Header("Wakeup")]
+        [Tooltip("Frames of wakeup during which a reversal special/super can be input.")]
+        [Min(0)] public int WakeupReversalWindow = 4;
+
+        [Tooltip("Back roll distance on ground tech.")]
+        public float BackRollDistance = 1.5f;
+
+        [Tooltip("Back roll duration in frames.")]
+        [Min(1)] public int BackRollFrames = 20;
+
+        [Tooltip("Invincibility frames during back roll.")]
+        [Min(0)] public int BackRollInvincibleFrames = 14;
+
         // ──────────────────────────────────────
         //  HURTBOXES (DEFAULT STANCES)
         // ──────────────────────────────────────

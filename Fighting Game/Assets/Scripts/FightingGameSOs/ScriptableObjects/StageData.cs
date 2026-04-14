@@ -72,8 +72,5 @@ namespace FightingGame.ScriptableObjects {
 
         [Tooltip("Round timer override. 0 = use MatchManager's default.")]
         [Min(0)] public int RoundTimeOverride = 0;
-
-        [Tooltip("Gravity scale on this stage (1.0 = normal). Affects jump arcs.")]
-        public float GravityScale = 1f;
     }
 }

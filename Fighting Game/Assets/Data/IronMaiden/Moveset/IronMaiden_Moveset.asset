@@ -13,31 +13,28 @@ MonoBehaviour:
   m_Name: IronMaiden_Moveset
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
   MovesetName: Iron Maiden Moveset
-  StandLightPunch: {fileID: 0}
-  StandMediumPunch: {fileID: 0}
-  StandHeavyPunch: {fileID: 0}
-  StandLightKick: {fileID: 0}
-  StandMediumKick: {fileID: 0}
-  StandHeavyKick: {fileID: 0}
-  CrouchLightPunch: {fileID: 0}
-  CrouchMediumPunch: {fileID: 0}
-  CrouchHeavyPunch: {fileID: 0}
-  CrouchLightKick: {fileID: 0}
-  CrouchMediumKick: {fileID: 0}
-  CrouchHeavyKick: {fileID: 0}
-  JumpLightPunch: {fileID: 0}
-  JumpMediumPunch: {fileID: 0}
-  JumpHeavyPunch: {fileID: 0}
-  JumpLightKick: {fileID: 0}
-  JumpMediumKick: {fileID: 0}
-  JumpHeavyKick: {fileID: 0}
+  StandPunch: {fileID: 11400000, guid: d03b34f8f39089f449c96d0e31e09f00, type: 2}
+  StandKick: {fileID: 11400000, guid: d821283e47dd6ba4db5be95caca5e51d, type: 2}
+  StandSlash: {fileID: 11400000, guid: 5177f74a0d12a7744b0d4596dcbfde6f, type: 2}
+  StandHeavySlash: {fileID: 11400000, guid: 57729dec2f5bb784ca3af14113eeec16, type: 2}
+  CrouchPunch: {fileID: 11400000, guid: 411047db0e7752f4db5d5a97f991fa15, type: 2}
+  CrouchKick: {fileID: 11400000, guid: ddac20b243c6d794a9016484db3ad72d, type: 2}
+  CrouchSlash: {fileID: 11400000, guid: db8c7c36e2514354b94a7cd53353b47f, type: 2}
+  CrouchHeavySlash: {fileID: 11400000, guid: 92efcd3244ca0b04ab5075549bdd182f, type: 2}
+  JumpPunch: {fileID: 11400000, guid: d824e2ccd522e9e438491aadbc7c5368, type: 2}
+  JumpKick: {fileID: 11400000, guid: 0b279c75bbd5c3b479a5d55103bf881f, type: 2}
+  JumpSlash: {fileID: 11400000, guid: 4f536b03966f4db45859b7d0fe5c18f3, type: 2}
+  JumpHeavySlash: {fileID: 11400000, guid: d0a02228df8fbd84caa44b842e230266, type: 2}
+  StandDust: {fileID: 11400000, guid: 2cfb37ad130b4114ca3c86002cdefff8, type: 2}
+  CrouchDust: {fileID: 11400000, guid: 3b15e0b9039e36143b8eb844b65d2c10, type: 2}
+  JumpDust: {fileID: 11400000, guid: ef47fc36d382e23488ce236559a4d5e3, type: 2}
+  CloseSlash: {fileID: 11400000, guid: 3e02926666bbd084f8d80c37ed378ee8, type: 2}
+  CloseHeavySlash: {fileID: 11400000, guid: 5583d018277ac7544aa94ff7c50d1986, type: 2}
   CommandNormals: []
   Specials: []
   EXSpecials: []
   SuperArts: []
-  ForwardThrow: {fileID: 0}
-  BackThrow: {fileID: 0}
-  Dash: {fileID: 0}
-  BackDash: {fileID: 0}
-  Taunt: {fileID: 0}
+  ForwardThrow: {fileID: 11400000, guid: 6a653ed4301ec024bb1099756fdc8393, type: 2}
+  BackThrow: {fileID: 11400000, guid: 21950c7ca2328344c9304924de925c4d, type: 2}
+  Taunt: {fileID: 11400000, guid: c312548d8f26d3d47bff7732969b8a32, type: 2}
   TargetCombos: []

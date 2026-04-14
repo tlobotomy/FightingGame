@@ -55,6 +55,28 @@ namespace FightingGame.Runtime {
         public GameObject BannerRoot;
         public TMP_Text BannerText;
 
+        [Header("Ghost Health Bar (trailing red)")]
+        [Tooltip("Trailing health bar that shows recent damage. Sits behind the main bar.")]
+        public Image P1GhostHealthBar;
+        public Image P2GhostHealthBar;
+        [Tooltip("Speed at which the ghost bar catches up (units per second).")]
+        public float GhostDrainSpeed = 0.3f;
+        public Color GhostHealthColor = new Color(0.85f, 0.15f, 0.15f, 0.8f);
+
+        [Header("Stun Meter")]
+        [Tooltip("Stun bar for each player. Depletes when hit, recovers after delay.")]
+        public Image P1StunBar;
+        public Image P2StunBar;
+        public Color StunBarColor = new Color(1f, 0.85f, 0.1f, 1f);
+        public Color StunBarDangerColor = new Color(1f, 0.3f, 0f, 1f);
+        [Range(0f, 1f)] public float StunDangerThreshold = 0.3f;
+
+        [Header("Combo Counter")]
+        [Tooltip("Combo hit count text. Shown near the defender during combos.")]
+        public TMP_Text P1ComboText;
+        public TMP_Text P2ComboText;
+        public Color ComboTextColor = Color.yellow;
+
         [Header("Colors")]
         public Color HealthFullColor = new Color(0.2f, 0.8f, 0.2f, 1f);
         public Color HealthLowColor = new Color(0.9f, 0.15f, 0.15f, 1f);
@@ -75,6 +97,17 @@ namespace FightingGame.Runtime {
         private PlayerController _p1;
         private PlayerController _p2;
         private bool _initialized;
+
+        // Ghost health bar state (tracks the trailing fill amount)
+        private float _p1GhostFill = 1f;
+        private float _p2GhostFill = 1f;
+
+        // Combo counter state (auto-hide after combo drops)
+        private int _p1LastCombo;
+        private int _p2LastCombo;
+        private float _p1ComboHideTimer;
+        private float _p2ComboHideTimer;
+        private const float COMBO_DISPLAY_LINGER = 1.5f; // seconds to show after combo ends
 
         // ──────────────────────────────────────
         //  LIFECYCLE
@@ -100,8 +133,14 @@ namespace FightingGame.Runtime {
 
             UpdateHealthBar(P1HealthBar, _p1);
             UpdateHealthBar(P2HealthBar, _p2);
+            UpdateGhostHealthBar(P1GhostHealthBar, _p1, ref _p1GhostFill);
+            UpdateGhostHealthBar(P2GhostHealthBar, _p2, ref _p2GhostFill);
             UpdateMeterBar(P1MeterBar, _p1);
             UpdateMeterBar(P2MeterBar, _p2);
+            UpdateStunBar(P1StunBar, _p1);
+            UpdateStunBar(P2StunBar, _p2);
+            UpdateComboDisplay(P1ComboText, _p1, ref _p1LastCombo, ref _p1ComboHideTimer);
+            UpdateComboDisplay(P2ComboText, _p2, ref _p2LastCombo, ref _p2ComboHideTimer);
         }
 
         // ──────────────────────────────────────
@@ -124,6 +163,20 @@ namespace FightingGame.Runtime {
             // Meter bar initial color
             if (P1MeterBar != null) P1MeterBar.color = MeterColor;
             if (P2MeterBar != null) P2MeterBar.color = MeterColor;
+
+            // Ghost health bars
+            if (P1GhostHealthBar != null) { P1GhostHealthBar.fillAmount = 1f; P1GhostHealthBar.color = GhostHealthColor; }
+            if (P2GhostHealthBar != null) { P2GhostHealthBar.fillAmount = 1f; P2GhostHealthBar.color = GhostHealthColor; }
+            _p1GhostFill = 1f;
+            _p2GhostFill = 1f;
+
+            // Stun bars
+            if (P1StunBar != null) { P1StunBar.fillAmount = 1f; P1StunBar.color = StunBarColor; }
+            if (P2StunBar != null) { P2StunBar.fillAmount = 1f; P2StunBar.color = StunBarColor; }
+
+            // Combo text (hidden initially)
+            if (P1ComboText != null) P1ComboText.gameObject.SetActive(false);
+            if (P2ComboText != null) P2ComboText.gameObject.SetActive(false);
 
             // Reset round win icons
             SetRoundWins(P1RoundWinIcons, 0);
@@ -159,6 +212,84 @@ namespace FightingGame.Runtime {
             }
             else {
                 bar.color = MeterColor;
+            }
+        }
+
+        // ──────────────────────────────────────
+        //  GHOST HEALTH BAR
+        // ──────────────────────────────────────
+
+        private void UpdateGhostHealthBar(Image ghostBar, PlayerController player, ref float ghostFill) {
+            if (ghostBar == null || player.Character == null) return;
+
+            float actualRatio = Mathf.Clamp01((float)player.Health / player.Character.MaxHealth);
+
+            // Ghost only drains DOWN — it never goes up faster than actual health.
+            // Snap up instantly if health somehow increases (healing).
+            if (actualRatio > ghostFill)
+                ghostFill = actualRatio;
+            else
+                ghostFill = Mathf.MoveTowards(ghostFill, actualRatio, GhostDrainSpeed * Time.deltaTime);
+
+            ghostBar.fillAmount = ghostFill;
+        }
+
+        // ──────────────────────────────────────
+        //  STUN METER
+        // ──────────────────────────────────────
+
+        private void UpdateStunBar(Image stunBar, PlayerController player) {
+            if (stunBar == null || player.Character == null) return;
+
+            float ratio = Mathf.Clamp01((float)player.StunMeter / player.Character.MaxStun);
+            stunBar.fillAmount = ratio;
+
+            stunBar.color = ratio <= StunDangerThreshold ? StunBarDangerColor : StunBarColor;
+        }
+
+        // ──────────────────────────────────────
+        //  COMBO COUNTER
+        // ──────────────────────────────────────
+
+        /// <summary>
+        /// Called by MatchManager each time a hit lands in a combo.
+        /// playerIndex is the DEFENDER (the one being comboed).
+        /// </summary>
+        public void SetComboCount(int playerIndex, int hits) {
+            TMP_Text label = (playerIndex == 0) ? P1ComboText : P2ComboText;
+            if (label == null) return;
+
+            if (hits >= 2) {
+                label.gameObject.SetActive(true);
+                label.text = $"{hits} HITS";
+                label.color = ComboTextColor;
+            }
+
+            // Reset hide timer references via the Update loop
+            if (playerIndex == 0) { _p1LastCombo = hits; _p1ComboHideTimer = COMBO_DISPLAY_LINGER; }
+            else { _p2LastCombo = hits; _p2ComboHideTimer = COMBO_DISPLAY_LINGER; }
+        }
+
+        private void UpdateComboDisplay(TMP_Text label, PlayerController player,
+            ref int lastCombo, ref float hideTimer) {
+            if (label == null) return;
+
+            int current = player.ComboHitCount;
+
+            if (current >= 2) {
+                // Active combo — keep visible, reset timer
+                label.gameObject.SetActive(true);
+                label.text = $"{current} HITS";
+                hideTimer = COMBO_DISPLAY_LINGER;
+                lastCombo = current;
+            }
+            else if (lastCombo >= 2) {
+                // Combo just ended — linger, then hide
+                hideTimer -= Time.deltaTime;
+                if (hideTimer <= 0f) {
+                    label.gameObject.SetActive(false);
+                    lastCombo = 0;
+                }
             }
         }
 

@@ -100,6 +100,7 @@ namespace FightingGame.Runtime {
 
         /// <summary>
         /// Matches a standalone button press (standing/crouching/air normal).
+        /// Public so PlayerController can call it for normal resolution.
         /// </summary>
         public bool MatchButton(ButtonInput btn, bool allowNegativeEdge = false) {
             if (btn == ButtonInput.None) return false;
@@ -111,6 +112,14 @@ namespace FightingGame.Runtime {
                 return true;
 
             return false;
+        }
+
+        /// <summary>
+        /// Checks if two buttons were both pressed within the given window.
+        /// Used for simultaneous button inputs (throw = P+K, taunt = HS+D).
+        /// </summary>
+        public bool MatchTwoButtons(ButtonInput btn1, ButtonInput btn2, int window) {
+            return _buffer.TwoButtonsPressedInWindow(btn1, btn2, window);
         }
 
         // ──────────────────────────────────────

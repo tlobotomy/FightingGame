@@ -5,11 +5,12 @@ using FightingGame.Data;
 namespace FightingGame.Runtime {
     /// <summary>
     /// Reads raw input from Unity's new Input System and converts it
-    /// into fighting-game DirectionInput/ButtonInput values.
+    /// into fighting-game DirectionInput/ButtonFlags values.
     ///
-    /// Requires a PlayerInput component on the same GameObject.
-    /// For local versus, Unity's PlayerInputManager assigns each
-    /// instance a different device automatically.
+    /// MULTI-BUTTON SUPPORT:
+    ///   Tracks all 5 buttons independently using a held-flags field and
+    ///   per-frame pressed/released flags. This allows simultaneous button
+    ///   detection (P+K for throw, HS+D for taunt) to work reliably.
     ///
     /// IMPORTANT: All directions are pre-flipped based on FacingSign,
     /// so everything downstream (buffer, parser, controller) thinks
@@ -22,10 +23,18 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         private Vector2 _rawStick;
-        private ButtonInput _heldButton = ButtonInput.None;
-        private bool _buttonDownThisFrame;
-        private bool _buttonUpThisFrame;
-        private ButtonInput _releasedButton = ButtonInput.None;
+
+        // Flags-based button tracking: supports all buttons simultaneously
+        private ButtonFlags _heldButtons;
+        private ButtonFlags _pressedThisFrame;
+        private ButtonFlags _releasedThisFrame;
+
+        /// <summary>
+        /// The most recently polled DirectionInput (set during Poll()).
+        /// Used by MatchManager to check crouch-back blocking without
+        /// needing direct access to the InputBuffer.
+        /// </summary>
+        public DirectionInput LastDirection { get; private set; }
 
         /// <summary>
         /// +1 when the character faces right, -1 when facing left.
@@ -42,8 +51,6 @@ namespace FightingGame.Runtime {
 
         // ──────────────────────────────────────
         //  INPUT SYSTEM CALLBACKS
-        //  Wire these in the PlayerInput component
-        //  (Behavior = "Send Messages" or "Invoke C# Events")
         // ──────────────────────────────────────
 
         public void OnMove(InputAction.CallbackContext ctx) {
@@ -51,23 +58,20 @@ namespace FightingGame.Runtime {
         }
 
         // GGXX 4+1 button layout: P / K / S / HS / D
-        public void OnPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Punch);
-        public void OnKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Kick);
-        public void OnSlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Slash);
-        public void OnHeavySlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.HeavySlash);
-        public void OnDust(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonInput.Dust);
+        public void OnPunch(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonFlags.Punch);
+        public void OnKick(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonFlags.Kick);
+        public void OnSlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonFlags.Slash);
+        public void OnHeavySlash(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonFlags.HeavySlash);
+        public void OnDust(InputAction.CallbackContext ctx) => HandleButton(ctx, ButtonFlags.Dust);
 
-        private void HandleButton(InputAction.CallbackContext ctx, ButtonInput btn) {
+        private void HandleButton(InputAction.CallbackContext ctx, ButtonFlags flag) {
             if (ctx.started) {
-                _heldButton = btn;
-                _buttonDownThisFrame = true;
+                _heldButtons |= flag;
+                _pressedThisFrame |= flag;
             }
             else if (ctx.canceled) {
-                _releasedButton = btn;
-                _buttonUpThisFrame = true;
-
-                if (_heldButton == btn)
-                    _heldButton = ButtonInput.None;
+                _heldButtons &= ~flag;
+                _releasedThisFrame |= flag;
             }
         }
 
@@ -82,28 +86,19 @@ namespace FightingGame.Runtime {
         /// </summary>
         public InputFrame Poll(int gameFrame) {
             DirectionInput dir = ConvertStickToDirection(_rawStick, FacingSign);
+            LastDirection = dir;
 
             var frame = new InputFrame {
                 Direction = dir,
-                Button = _heldButton,
-                ButtonPressed = _buttonDownThisFrame,
-                ButtonReleased = _buttonUpThisFrame,
+                HeldButtons = _heldButtons,
+                PressedButtons = _pressedThisFrame,
+                ReleasedButtons = _releasedThisFrame,
                 Frame = gameFrame
             };
 
-            // If a button was released this frame, record which one
-            // so the parser can use it for negative edge.
-            // The "Button" field stays as the held button (or None),
-            // while ButtonReleased flag + the released button identity
-            // travel through the frame.
-            if (_buttonUpThisFrame) {
-                frame.Button = _releasedButton;
-            }
-
             // Reset per-frame flags
-            _buttonDownThisFrame = false;
-            _buttonUpThisFrame = false;
-            _releasedButton = ButtonInput.None;
+            _pressedThisFrame = ButtonFlags.None;
+            _releasedThisFrame = ButtonFlags.None;
 
             return frame;
         }
@@ -119,8 +114,6 @@ namespace FightingGame.Runtime {
         private DirectionInput ConvertStickToDirection(Vector2 stick, int facingSign) {
             DirectionInput dir = DirectionInput.None;
 
-            // Flip horizontal so "right on the stick" means "forward"
-            // when facing right, and "back" when facing left.
             float h = stick.x * facingSign;
             float v = stick.y;
 

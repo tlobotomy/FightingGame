@@ -29,33 +29,49 @@ MonoBehaviour:
     Startup: 3
     Active: 4
     Recovery: 6
-    AttackLevel: 0
-    AttackerHitstopOverride: 0
-    DefenderHitstopOverride: 0
-    DefenderBlockstopOverride: 0
-    HitstunOverride: 10
-    BlockstunOverride: 9
+    AttackLevel: 1
+    UseHitstopOverride: 0
+    HitstopOverride: 0
+    UseBlockstopOverride: 0
+    BlockstopOverride: 0
+    HitstunOverride: 0
+    BlockstunOverride: 0
+    UntechableTimeOverride: 0
   Damage:
     BaseDamage: 12
     ChipDamage: 0
     StunDamage: 3
     DamageScaling: 0
+    InitialProration: 0
     MeterGainOnHit: 8
     MeterGainOnWhiff: 4
   Height: 1
   OnHitEffect: 0
-  HitKnockback: {x: 0, y: 0}
-  BlockKnockback: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.03, y: 0}
+  BlockPushbackVelocity: {x: 0.05, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
+    MaxCancelLevel: 1
     CancelWindowStart: 0
     CancelWindowEnd: 0
     AllowKaraCancel: 0
     KaraCancelFrames: 0
+    AllowJumpCancel: 1
+    AllowJumpCancelOnBlock: 1
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
+  TargetComboRoutes:
+  - {fileID: 11400000}
+  - {fileID: 11400000, guid: 4c662c942fcd05b478dd728d23837bdc, type: 2}
+  - {fileID: 11400000, guid: dc29b38b3aee04947823ce7d0d5595ee, type: 2}
+  - {fileID: 11400000, guid: 5c809d19917f99b4a97f99d75e50912e, type: 2}
+  - {fileID: 11400000, guid: 4074045c6a37aa64cbeeefac303c00d9, type: 2}
+  - {fileID: 11400000, guid: 5266f548ecc7b71418072ca9251dbf54, type: 2}
+  - {fileID: 11400000, guid: 2eff41e6c121bd74e9a7b25ce909b1c0, type: 2}
+  - {fileID: 11400000, guid: 80cd2d495136937469e8f7ed8011a764, type: 2}
+  - {fileID: 11400000, guid: d1e1ad26bac03c54794fac1c26ddf11e, type: 2}
+  - {fileID: 11400000, guid: 8e908e9e45b0836479814e2ca9b73952, type: 2}
+  - {fileID: 11400000, guid: 54cca1e39021fca4199a304188e864ea, type: 2}
   HitboxFrames:
   - StartFrame: 0
     EndFrame: 5

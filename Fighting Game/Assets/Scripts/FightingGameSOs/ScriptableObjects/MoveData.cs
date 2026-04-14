@@ -66,11 +66,16 @@ namespace FightingGame.ScriptableObjects {
         public AttackHeight Height;
         public HitEffect OnHitEffect;
 
-        [Tooltip("Knockback velocity applied to the opponent on hit.")]
-        public Vector2 HitKnockback;
+        [Tooltip("Initial pushback velocity on HIT (units/frame).\n" +
+                 "X = horizontal push away from attacker. Y = vertical (launchers only).\n" +
+                 "The defender slides during hitstun, decelerating to zero by the end.")]
+        public Vector2 HitPushbackVelocity;
 
-        [Tooltip("Knockback on block (pushback).")]
-        public Vector2 BlockKnockback;
+        [Tooltip("Initial pushback velocity on BLOCK (units/frame).\n" +
+                 "X = horizontal push away from attacker. Y is typically 0.\n" +
+                 "The defender slides during blockstun, decelerating to zero by the end.\n" +
+                 "FD multiplies this by Character.FDPushbackMultiplier (default 1.5x).")]
+        public Vector2 BlockPushbackVelocity;
 
         [Tooltip("Number of hits (for multi-hit moves like a super).")]
         [Min(1)] public int HitCount = 1;
@@ -188,9 +193,11 @@ namespace FightingGame.ScriptableObjects {
             if (Cancel.AlwaysSuperCancellable && target.Type == MoveType.Super)
                 return Cancel.IsInCancelWindow(currentMoveFrame);
 
-            // Standard cancel level check
-            if ((int)target.GetCancelLevel() <= (int)Cancel.MaxCancelLevel)
-                return false; // can't cancel into same or lower level
+            // Standard cancel level check — can only cancel into moves
+            // whose cancel level is within the allowed range.
+            // e.g. MaxCancelLevel=Special(3) allows Normal/Command/Special but not Super.
+            if ((int)target.GetCancelLevel() > (int)Cancel.MaxCancelLevel)
+                return false;
 
             return Cancel.IsInCancelWindow(currentMoveFrame);
         }
