@@ -13,31 +13,47 @@ MonoBehaviour:
   m_Name: Bonesaw_Moveset
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MovesetData
   MovesetName: Bonesaw Moveset
-  StandLightPunch: {fileID: 0}
-  StandMediumPunch: {fileID: 0}
-  StandHeavyPunch: {fileID: 0}
-  StandLightKick: {fileID: 0}
-  StandMediumKick: {fileID: 0}
-  StandHeavyKick: {fileID: 0}
-  CrouchLightPunch: {fileID: 0}
-  CrouchMediumPunch: {fileID: 0}
-  CrouchHeavyPunch: {fileID: 0}
-  CrouchLightKick: {fileID: 0}
-  CrouchMediumKick: {fileID: 0}
-  CrouchHeavyKick: {fileID: 0}
-  JumpLightPunch: {fileID: 0}
-  JumpMediumPunch: {fileID: 0}
-  JumpHeavyPunch: {fileID: 0}
-  JumpLightKick: {fileID: 0}
-  JumpMediumKick: {fileID: 0}
-  JumpHeavyKick: {fileID: 0}
+  StandPunch: {fileID: 11400000, guid: 731e7e06fe43eaf41832ee9de38f0c5c, type: 2}
+  StandKick: {fileID: 11400000, guid: 74a437efcb2a94443adbfa3a20d09c6a, type: 2}
+  StandSlash: {fileID: 11400000, guid: 1cb9821a96e960248a999612ebeb8098, type: 2}
+  StandHeavySlash: {fileID: 11400000, guid: f51b28971db16f84f82ba7bcfbba7cc7, type: 2}
+  CrouchPunch: {fileID: 11400000, guid: df97a367f8bf74a478a084974cdc3fd8, type: 2}
+  CrouchKick: {fileID: 11400000, guid: ad6ac303c68544b458b62aa99ed89016, type: 2}
+  CrouchSlash: {fileID: 11400000, guid: a30b3c50272c0294ebcb254acf1b2c0c, type: 2}
+  CrouchHeavySlash: {fileID: 11400000, guid: 31007192ac7d03742988979bb2ecb496, type: 2}
+  JumpPunch: {fileID: 11400000, guid: a983ed87c37d5ee4f99f13cfe2b6ab85, type: 2}
+  JumpKick: {fileID: 11400000, guid: dc87b0f34c58fe34fb90018cbf95ab74, type: 2}
+  JumpSlash: {fileID: 11400000, guid: 4df9550ddba72004e9b1a886006f51bc, type: 2}
+  JumpHeavySlash: {fileID: 11400000, guid: 7dd888d71998d4c4da29a5e95a74e6f8, type: 2}
+  StandDust: {fileID: 11400000, guid: d1fb8841140f34b4db89545cb13c8925, type: 2}
+  CrouchDust: {fileID: 11400000, guid: c06b60351c4b99e4a9d94a0625d5387d, type: 2}
+  JumpDust: {fileID: 11400000, guid: 34fe7288c83a22c4798711c9bc10d9b8, type: 2}
+  CloseSlash: {fileID: 11400000, guid: 0bfd3ab6fe7bba44193bf10abb2f8987, type: 2}
   CommandNormals: []
-  Specials: []
+  Specials:
+  - {fileID: 11400000, guid: 4934b988723e47f47924c7fbd82bd8d4, type: 2}
   EXSpecials: []
   SuperArts: []
-  ForwardThrow: {fileID: 0}
-  BackThrow: {fileID: 0}
-  Dash: {fileID: 0}
-  BackDash: {fileID: 0}
+  ForwardThrow: {fileID: 11400000, guid: 384447d9be56b2e43a419683e86f1afb, type: 2}
+  BackThrow: {fileID: 11400000, guid: 6ce0ef53cd725a243af3b300e2991750, type: 2}
   Taunt: {fileID: 0}
-  TargetCombos: []
+  TargetCombos:
+  - Name: Sweep
+    Sequence:
+    - {fileID: 11400000, guid: ad6ac303c68544b458b62aa99ed89016, type: 2}
+    - {fileID: 11400000, guid: c06b60351c4b99e4a9d94a0625d5387d, type: 2}
+  - Name: Slash
+    Sequence:
+    - {fileID: 11400000, guid: 0bfd3ab6fe7bba44193bf10abb2f8987, type: 2}
+    - {fileID: 11400000, guid: 1cb9821a96e960248a999612ebeb8098, type: 2}
+  - Name: Gatling
+    Sequence:
+    - {fileID: 11400000, guid: 731e7e06fe43eaf41832ee9de38f0c5c, type: 2}
+    - {fileID: 11400000, guid: 74a437efcb2a94443adbfa3a20d09c6a, type: 2}
+    - {fileID: 11400000, guid: 0bfd3ab6fe7bba44193bf10abb2f8987, type: 2}
+    - {fileID: 11400000, guid: f51b28971db16f84f82ba7bcfbba7cc7, type: 2}
+    - {fileID: 11400000, guid: d1fb8841140f34b4db89545cb13c8925, type: 2}
+  - Name: ah
+    Sequence:
+    - {fileID: 11400000, guid: 74a437efcb2a94443adbfa3a20d09c6a, type: 2}
+    - {fileID: 11400000, guid: c06b60351c4b99e4a9d94a0625d5387d, type: 2}

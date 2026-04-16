@@ -608,6 +608,28 @@
                     "action": "Dust",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "887df5e0-079e-4617-bc8d-104608ba517d",
+                    "path": "<Gamepad>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Dust",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7ce091b0-e9a6-4186-9c03-52e7ae74f980",
+                    "path": "<Gamepad>/rightStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Dust",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         },

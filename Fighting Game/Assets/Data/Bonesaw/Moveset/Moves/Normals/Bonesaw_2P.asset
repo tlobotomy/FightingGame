@@ -1,0 +1,117 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
+  m_Name: Bonesaw_2P
+  m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
+  MoveName: Crouch P
+  Notation: 2P
+  Type: 0
+  UsableFrom: 2
+  Motion:
+    Type: 0
+    Button: 0
+    CustomSequence: 
+    ChargeFrames: 0
+    InputWindow: 0
+    AllowNegativeEdge: 0
+  RequiredDirection: 0
+  InputPriority: 0
+  Frames:
+    Startup: 3
+    Active: 2
+    Recovery: 7
+    AttackLevel: 1
+    UseHitstopOverride: 0
+    HitstopOverride: 0
+    UseBlockstopOverride: 0
+    BlockstopOverride: 0
+    HitstunOverride: 0
+    BlockstunOverride: 0
+    UntechableTimeOverride: 0
+  Damage:
+    BaseDamage: 6
+    ChipDamage: 0
+    StunDamage: 0
+    DamageScaling: 0
+    InitialProration: 0
+    MeterGainOnHit: 144
+    MeterGainOnWhiff: 0
+  Height: 2
+  OnHitEffect: 0
+  HitPushbackVelocity: {x: 0.12, y: 0}
+  BlockPushbackVelocity: {x: 0.48, y: 0}
+  HitCount: 1
+  MultiHitInterval: 0
+  Cancel:
+    MaxCancelLevel: 0
+    CancelWindowStart: 0
+    CancelWindowEnd: 0
+    AllowKaraCancel: 0
+    KaraCancelFrames: 0
+    AllowJumpCancel: 0
+    AllowJumpCancelOnBlock: 0
+    AlwaysSuperCancellable: 0
+  TargetComboRoutes:
+  - {fileID: 11400000, guid: 731e7e06fe43eaf41832ee9de38f0c5c, type: 2}
+  - {fileID: 11400000}
+  - {fileID: 11400000, guid: 74a437efcb2a94443adbfa3a20d09c6a, type: 2}
+  - {fileID: 11400000, guid: ad6ac303c68544b458b62aa99ed89016, type: 2}
+  - {fileID: 11400000, guid: 0bfd3ab6fe7bba44193bf10abb2f8987, type: 2}
+  - {fileID: 11400000, guid: 1cb9821a96e960248a999612ebeb8098, type: 2}
+  - {fileID: 11400000, guid: a30b3c50272c0294ebcb254acf1b2c0c, type: 2}
+  - {fileID: 11400000, guid: f51b28971db16f84f82ba7bcfbba7cc7, type: 2}
+  - {fileID: 11400000, guid: 31007192ac7d03742988979bb2ecb496, type: 2}
+  - {fileID: 11400000, guid: d1fb8841140f34b4db89545cb13c8925, type: 2}
+  - {fileID: 11400000, guid: c06b60351c4b99e4a9d94a0625d5387d, type: 2}
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 1
+    Hitboxes:
+    - Offset: {x: 0.22, y: 0.5}
+      Size: {x: 1.32, y: 0.83}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
+  HurtboxOverrides: []
+  HurtboxOverrideFrameRanges: []
+  Movement:
+    HorizontalCurve:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    VerticalCurve:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    HorizontalSpeed: 0
+    VerticalSpeed: 0
+    Airborne: 0
+  AnimationStateName: 2P
+  AnimationClip: {fileID: 0}
+  HitEffectPrefab: {fileID: 0}
+  WhiffEffectPrefab: {fileID: 0}
+  SwingSound: {fileID: 0}
+  HitSound: {fileID: 0}
+  BlockSound: {fileID: 0}
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpawnFrame: 0
+  ProjectileSpawnOffset: {x: 0, y: 0}
+  MeterCost: 0
+  SuperStockIndex: -1
+  Parryable: 1
+  IsEX: 0
+  JuggleCost: 0

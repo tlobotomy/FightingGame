@@ -57,8 +57,10 @@ namespace FightingGame.Runtime {
         public float MaxZoomDistance = 8f;
 
         [Header("Vertical Tracking")]
-        [Tooltip("Base Y position when both players are grounded.")]
-        public float BaseY = 2.5f;
+        [Tooltip("Base Y position when both players are grounded.\n" +
+                 "Should be roughly GroundY + MinOrthoSize so characters appear " +
+                 "in the lower third, not clipped at the bottom edge.")]
+        public float BaseY = 1f;
 
         [Tooltip("How much the camera rises to follow airborne players (0 = no follow, 1 = full follow).")]
         [Range(0f, 1f)]
@@ -66,6 +68,10 @@ namespace FightingGame.Runtime {
 
         [Tooltip("Maximum upward offset from BaseY.")]
         public float MaxVerticalOffset = 2f;
+
+        [Tooltip("How much ground to show below GroundY (prevents characters " +
+                 "from being pinned to the very bottom of the screen).")]
+        public float GroundPadding = 0.5f;
 
         [Header("Smoothing")]
         [Tooltip("Horizontal follow smoothing (lower = snappier).")]
@@ -81,8 +87,8 @@ namespace FightingGame.Runtime {
         [Tooltip("If true, reads bounds from MatchManager. If false, uses the manual overrides below.")]
         public bool UseMatchManagerBounds = true;
 
-        public float ManualLeftBound = -6f;
-        public float ManualRightBound = 6f;
+        public float ManualLeftBound = -3.5f;
+        public float ManualRightBound = 3.5f;
         public float ManualGroundY = 0f;
 
         // ──────────────────────────────────────
@@ -183,8 +189,10 @@ namespace FightingGame.Runtime {
                 smoothX = Mathf.Clamp(smoothX, minCamX, maxCamX);
             }
 
-            // Clamp vertical so camera doesn't go below ground
-            float minCamY = groundY + halfHeight;
+            // Clamp vertical so camera doesn't go too far below ground.
+            // GroundPadding lets a strip of ground show beneath the characters
+            // so they aren't pinned to the bottom pixel of the screen.
+            float minCamY = (groundY - GroundPadding) + halfHeight;
             smoothY = Mathf.Max(smoothY, minCamY);
 
             // --- APPLY ---
@@ -205,6 +213,11 @@ namespace FightingGame.Runtime {
             float playerDistance = Mathf.Abs(_p1.position.x - _p2.position.x);
             float zoomT = Mathf.InverseLerp(MinZoomDistance, MaxZoomDistance, playerDistance);
             float targetOrtho = Mathf.Lerp(MinOrthoSize, MaxOrthoSize, zoomT);
+
+            // Apply the same ground clamp as UpdateCamera
+            float groundY = UseMatchManagerBounds ? Match.GroundY : ManualGroundY;
+            float minCamY = (groundY - GroundPadding) + targetOrtho;
+            targetY = Mathf.Max(targetY, minCamY);
 
             transform.position = new Vector3(targetX, targetY, transform.position.z);
             _cam.orthographicSize = targetOrtho;

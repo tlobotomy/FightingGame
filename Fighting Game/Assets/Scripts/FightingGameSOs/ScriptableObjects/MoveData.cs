@@ -90,10 +90,6 @@ namespace FightingGame.ScriptableObjects {
         [Header("Cancel Rules")]
         public CancelData Cancel;
 
-        [Tooltip("Specific moves this move can chain into (e.g. Gatling routes). " +
-                 "If empty, standard cancel-level rules apply.")]
-        public MoveData[] TargetComboRoutes;
-
         // ──────────────────────────────────────
         //  HITBOXES
         // ──────────────────────────────────────
@@ -183,12 +179,6 @@ namespace FightingGame.ScriptableObjects {
         /// Quick check: can this move cancel into `target` given the current frame?
         /// </summary>
         public bool CanCancelInto(MoveData target, int currentMoveFrame) {
-            // Target combo / Gatling routes override normal cancel rules
-            if (TargetComboRoutes != null && TargetComboRoutes.Length > 0) {
-                foreach (var route in TargetComboRoutes)
-                    if (route == target) return true;
-            }
-
             // Super cancel always allowed if flagged
             if (Cancel.AlwaysSuperCancellable && target.Type == MoveType.Super)
                 return Cancel.IsInCancelWindow(currentMoveFrame);

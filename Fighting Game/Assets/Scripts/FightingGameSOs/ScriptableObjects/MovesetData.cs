@@ -58,11 +58,8 @@ namespace FightingGame.ScriptableObjects {
         // ──────────────────────────────────────
 
         [Header("Close Normals (optional proximity variants)")]
-        [Tooltip("Close standing Slash (f.S or cl.S depending on the game version).")]
+        [Tooltip("Close standing Slash (c.S — proximity normal used when in close range).")]
         public MoveData CloseSlash;
-
-        [Tooltip("Close standing Heavy Slash (optional).")]
-        public MoveData CloseHeavySlash;
 
         // ──────────────────────────────────────
         //  COMMAND NORMALS & UNIQUE ATTACKS
@@ -115,9 +112,17 @@ namespace FightingGame.ScriptableObjects {
         //  GATLING / TARGET COMBOS
         // ──────────────────────────────────────
 
-        [Header("Gatling Routes / Target Combos")]
-        [Tooltip("Pre-defined chain routes (e.g. P > K > S > HS Gatling table). " +
-                 "Each entry is a full sequence from starter to ender.")]
+        [Header("Gatling Table")]
+        [Tooltip("GGACR-style Gatling routes. Each entry is a named sequence of moves " +
+                 "that can chain into each other during Active/Recovery frames, regardless " +
+                 "of whether the previous move connected.\n\n" +
+                 "Example entries:\n" +
+                 "  'P Chain'  → [5P, 5K, cS, 5HS]\n" +
+                 "  'Dust Chain' → [cS, 5D]\n" +
+                 "  'Low Chain' → [2P, 2K, 2S]\n\n" +
+                 "A move can appear in multiple sequences (e.g. cS routes into both 5HS " +
+                 "and 2HS). The first matching sequence wins.\n\n" +
+                 "Cancel timing is controlled by the individual move's CancelData.")]
         public TargetCombo[] TargetCombos;
 
         // ──────────────────────────────────────
@@ -208,15 +213,18 @@ namespace FightingGame.ScriptableObjects {
     }
 
     /// <summary>
-    /// A fixed chain of moves that bypasses normal cancel rules
-    /// (Gatling combos, target combos).
+    /// A single Gatling route — an ordered sequence of moves where each
+    /// entry can cancel into the next during Active/Recovery frames.
+    /// Cancels fire regardless of whether the move hit (GGACR rule).
+    /// Cancel timing is still controlled per-move via CancelData.
     /// </summary>
     [System.Serializable]
     public struct TargetCombo {
+        [Tooltip("Descriptive name shown in the inspector (e.g. 'P Chain', 'Low Route').")]
         public string Name;
 
-        [Tooltip("Ordered sequence of moves. Each move can cancel into the next " +
-                 "regardless of cancel level (Gatling route).")]
+        [Tooltip("Ordered chain: Sequence[0] can Gatling into Sequence[1], " +
+                 "Sequence[1] into Sequence[2], etc. Must have at least 2 entries.")]
         public MoveData[] Sequence;
     }
 }

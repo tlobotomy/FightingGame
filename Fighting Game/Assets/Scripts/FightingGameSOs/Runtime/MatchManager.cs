@@ -31,8 +31,8 @@ namespace FightingGame.Runtime {
         public CharacterData FallbackP2Character;
 
         [Header("Stage (fallback — overridden by MatchSettings.SelectedStage)")]
-        public float StageLeftBound = -6f;
-        public float StageRightBound = 6f;
+        public float StageLeftBound = -3.5f;
+        public float StageRightBound = 3.5f;
         public float GroundY = 0f;
 
         [Header("Spawn Points")]
@@ -63,6 +63,7 @@ namespace FightingGame.Runtime {
         [Header("UI & Camera")]
         public BattleUIManager BattleUI;
         public BattleCameraController BattleCamera;
+        public PostMatchUI PostMatchPanel;
 
         [Header("Stage Visuals")]
         public Transform BackgroundParent;
@@ -507,7 +508,11 @@ namespace FightingGame.Runtime {
                         winner = "P2 WINS";
 
                     if (BattleUI != null)
-                        BattleUI.ShowBanner(winner, 5f);
+                        BattleUI.ShowBanner(winner, 3f);
+
+                    // Trigger post-match menu (appears after a short delay)
+                    if (PostMatchPanel != null)
+                        PostMatchPanel.Show(winner);
                 }
                 else {
                     SetPhase(MatchPhase.RoundEnd);
@@ -887,6 +892,10 @@ namespace FightingGame.Runtime {
                         // Route through TakeProjectileHit for proper hitstun/blockstun
                         _players[p].TakeProjectileHit(proj, blocked, projBlockType);
 
+                        // Update combo counter UI for projectile hits
+                        if (!blocked && BattleUI != null)
+                            BattleUI.SetComboCount(p, _players[p].ComboHitCount);
+
                         proj.OnHitConfirmed();
                         break;
                     }
@@ -898,11 +907,29 @@ namespace FightingGame.Runtime {
             var state = defender.State;
             int idx = (_players[0] == defender) ? 0 : 1;
 
-            // Air blocking projectiles
-            if (state == PlayerController.PlayerState.Airborne) {
-                bool airBack = CheckDirectionHeld(idx, DirectionInput.Back);
-                if (!airBack) return false;
+            // States that absolutely cannot block
+            if (state == PlayerController.PlayerState.Startup
+                || state == PlayerController.PlayerState.Active
+                || state == PlayerController.PlayerState.Recovery
+                || state == PlayerController.PlayerState.PreJump
+                || state == PlayerController.PlayerState.Hitstun
+                || state == PlayerController.PlayerState.Launched
+                || state == PlayerController.PlayerState.Knockdown
+                || state == PlayerController.PlayerState.Stunned
+                || state == PlayerController.PlayerState.Crumple
+                || state == PlayerController.PlayerState.Thrown
+                || state == PlayerController.PlayerState.KO
+                || state == PlayerController.PlayerState.AirDashForward
+                || state == PlayerController.PlayerState.AirDashBack)
+                return false;
 
+            bool holdBack = CheckDirectionHeld(idx, DirectionInput.Back);
+            bool holdDown = CheckDirectionHeld(idx, DirectionInput.Down);
+
+            // Air blocking projectiles (Airborne or already air-blockstunned)
+            if (state == PlayerController.PlayerState.Airborne
+                || (state == PlayerController.PlayerState.Blockstun)) {
+                if (!holdBack) return false;
                 switch (proj.Height) {
                     case AttackHeight.Low:
                     case AttackHeight.Unblockable:
@@ -912,22 +939,40 @@ namespace FightingGame.Runtime {
                 }
             }
 
-            bool holdingBack = state == PlayerController.PlayerState.WalkBack;
-            bool crouchBack = state == PlayerController.PlayerState.Crouching
-                && CheckDirectionHeld(idx, DirectionInput.Back);
+            // Already in blockstun (blockstring) — continue blocking if still holding back
+            // This is how multi-hit blockstrings work in fighting games.
+            if (state == PlayerController.PlayerState.Blockstun) {
+                if (!holdBack) return false;
+                switch (proj.Height) {
+                    case AttackHeight.Low:
+                        return holdDown; // must be holding down-back
+                    case AttackHeight.Overhead:
+                    case AttackHeight.High:
+                        return !holdDown; // must be standing back
+                    case AttackHeight.Unblockable:
+                        return false;
+                    default:
+                        return true; // mid — either works
+                }
+            }
+
+            // Ground blocking
+            bool standingBack = (state == PlayerController.PlayerState.WalkBack)
+                || (state == PlayerController.PlayerState.Idle && holdBack);
+            bool crouchBack = (state == PlayerController.PlayerState.Crouching && holdBack);
 
             switch (proj.Height) {
                 case AttackHeight.Low:
                     return crouchBack;
                 case AttackHeight.Overhead:
                 case AttackHeight.High:
-                    return holdingBack;
+                    return standingBack;
                 case AttackHeight.Mid:
-                    return holdingBack || crouchBack;
+                    return standingBack || crouchBack;
                 case AttackHeight.Unblockable:
                     return false;
                 default:
-                    return holdingBack || crouchBack;
+                    return standingBack || crouchBack;
             }
         }
 
@@ -1038,6 +1083,8 @@ namespace FightingGame.Runtime {
                 || state == PlayerController.PlayerState.Launched
                 || state == PlayerController.PlayerState.Knockdown
                 || state == PlayerController.PlayerState.Wakeup
+                || state == PlayerController.PlayerState.AirDashForward
+                || state == PlayerController.PlayerState.AirDashBack
                 || state == PlayerController.PlayerState.Crumple)
                 return false;
 
@@ -1231,14 +1278,8 @@ namespace FightingGame.Runtime {
 
             // Check proximity for close normals (standing only)
             if (stance == MoveUsableState.Standing && InCloseRange) {
-                MoveData closeNormal = null;
                 if (button == ButtonInput.Slash && moveset.CloseSlash != null)
-                    closeNormal = moveset.CloseSlash;
-                else if (button == ButtonInput.HeavySlash && moveset.CloseHeavySlash != null)
-                    closeNormal = moveset.CloseHeavySlash;
-
-                if (closeNormal != null)
-                    return closeNormal;
+                    return moveset.CloseSlash;
             }
 
             return moveset.GetNormal(button, stance);

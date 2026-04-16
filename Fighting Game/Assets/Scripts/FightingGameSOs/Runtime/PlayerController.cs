@@ -60,6 +60,8 @@ namespace FightingGame.Runtime {
             Crouching,
             PreJump,
             Airborne,
+            AirDashForward,
+            AirDashBack,
             JumpLanding,
             DashForward,
             DashBack,
@@ -93,10 +95,16 @@ namespace FightingGame.Runtime {
         private int _moveFrame;
         private bool _moveHasConnected;   // true once this attack hit or was blocked (enables jump cancel)
         private bool _moveWasBlocked;     // true if the connection was a block (for AllowJumpCancelOnBlock)
+        private bool _moveStartedAirborne; // true if ExecuteMove was called while character was above ground
         private bool _isAirBlocking;      // true when blockstun was entered while airborne (gravity applies)
+        private int _airJumpsUsed;        // tracks how many air jumps have been used this airtime
+        private int _airDashesUsed;       // tracks air dashes used this airtime
+        private int _airborneFrameCount;  // frames spent airborne (for air dash minimum height)
 
         // GGXX per-player hitstop
         private int _hitstopRemaining;
+        private int _hitstopFramesElapsed;       // how many hitstop frames passed (for buffer window expansion)
+        private ButtonFlags _hitstopPendingPress; // button presses accumulated during hitstop
 
         // Stun duration tracking
         private int _stunFramesRemaining;
@@ -105,6 +113,17 @@ namespace FightingGame.Runtime {
         private float _velocityX;
         private float _velocityY;
         private float _groundY;
+        private const float GROUND_SNAP_THRESHOLD = 0.02f;
+
+        /// <summary>
+        /// Safe setter for _groundY. Only writes if the character is physically
+        /// on (or very near) the current ground level. Prevents corruption when
+        /// called mid-air from state transitions, hit effects, or move execution.
+        /// </summary>
+        private void TrySetGroundY() {
+            if (transform.position.y <= _groundY + GROUND_SNAP_THRESHOLD)
+                _groundY = transform.position.y;
+        }
 
         // Ground pushback (velocity-based slide during hitstun/blockstun)
         private float _pushbackVelocityX;  // current horizontal slide speed (decays per frame)
@@ -125,6 +144,15 @@ namespace FightingGame.Runtime {
         private float _comboDamageScaling;  // current scaling multiplier (starts at 1.0)
         private int _jugglePointsUsed;      // juggle points consumed so far
         private bool _isBeingComboed;       // true while in a combo (no neutral reset)
+        private int _comboGraceFrames;      // frames remaining before combo truly resets after hitstun ends
+
+        /// <summary>
+        /// Grace window (in frames) after hitstun/blockstun ends before the
+        /// combo counter resets. If the defender gets hit again within this
+        /// window, the combo continues. This accounts for Gatling chains where
+        /// the next hit's startup barely outlasts the previous hit's hitstun.
+        /// </summary>
+        private const int COMBO_GRACE_WINDOW = 4;
 
         // Knockdown / wakeup
         private const int HARD_KNOCKDOWN_FRAMES = 30;
@@ -177,6 +205,7 @@ namespace FightingGame.Runtime {
         public bool IsFaultlessDefenseActive => _faultlessDefenseActive;
         public bool WasInstantBlocked => _instantBlocked;
         public bool CanAirTech => _canAirTech;
+        public bool IsAirBlocking => _isAirBlocking;
 
         /// <summary>
         /// The most recent InputFrame from this tick. Exposed so MatchManager
@@ -221,7 +250,13 @@ namespace FightingGame.Runtime {
         /// this player freezes in place (GGXX per-player hitstop).
         /// </summary>
         public void ApplyHitstop(int frames) {
+            if (frames <= 0) return; // safety: never apply zero or negative hitstop
             _hitstopRemaining = frames;
+            _hitstopFramesElapsed = 0;
+            _hitstopPendingPress = ButtonFlags.None;
+#if UNITY_EDITOR
+            Debug.Log($"[Hitstop] {gameObject.name} frozen for {frames}f | state={_state} | move={(_currentMove != null ? _currentMove.MoveName : "none")}");
+#endif
         }
 
         /// <summary>
@@ -263,6 +298,8 @@ namespace FightingGame.Runtime {
             _stunMeter = Character.MaxStun;
             _gameFrame = 0;
             _hitstopRemaining = 0;
+            _hitstopFramesElapsed = 0;
+            _hitstopPendingPress = ButtonFlags.None;
             _stunFramesRemaining = 0;
             _negativePenaltyTimer = 0;
             _idleNegativeTimer = 0;
@@ -271,6 +308,7 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
+            _comboGraceFrames = 0;
             _invincibleFramesRemaining = 0;
             _framesSinceLastHit = 999;
             _faultlessDefenseActive = false;
@@ -292,6 +330,8 @@ namespace FightingGame.Runtime {
             if (!keepMeter) _meter = 0;
             _stunMeter = Character.MaxStun;
             _hitstopRemaining = 0;
+            _hitstopFramesElapsed = 0;
+            _hitstopPendingPress = ButtonFlags.None;
             _stunFramesRemaining = 0;
             _negativePenaltyTimer = 0;
             _idleNegativeTimer = 0;
@@ -300,6 +340,7 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
+            _comboGraceFrames = 0;
             _invincibleFramesRemaining = 0;
             _framesSinceLastHit = 999;
             _currentMove = null;
@@ -308,6 +349,14 @@ namespace FightingGame.Runtime {
             _velocityY = 0f;
             _pushbackVelocityX = 0f;
             _pushbackFriction = 0f;
+            _groundY = transform.position.y; // cache ground level for shadow/jump calculations
+            _airJumpsUsed = 0;
+            _airDashesUsed = 0;
+            _airborneFrameCount = 0;
+            _moveHasConnected = false;
+            _moveWasBlocked = false;
+            _moveStartedAirborne = false;
+            _isAirBlocking = false;
             _state = PlayerState.Idle;
             _stateFrameCounter = 0;
             _buffer.Clear();
@@ -327,13 +376,32 @@ namespace FightingGame.Runtime {
             // --- HITSTOP: freeze in place ---
             if (_hitstopRemaining > 0) {
                 _hitstopRemaining--;
+                _hitstopFramesElapsed++;
 
+                // Poll input and push to the buffer so direction history
+                // remains intact (needed for charge detection).
+                // ALSO accumulate any button presses — these tend to scroll
+                // out of ButtonPressWindow (4 frames) during long hitstop
+                // (11+ frames), making cancel inputs disappear before any
+                // cancel check ever runs.
                 InputFrame frozenInput = _detector.Poll(_gameFrame);
                 _buffer.Push(frozenInput);
+                _hitstopPendingPress |= frozenInput.PressedButtons;
                 LastInput = frozenInput;
 
-                if (_hitstopRemaining == 0 && _stunFramesRemaining > 0) {
-                    // Hitstop ended — stun countdown begins in TickState
+                if (_hitstopRemaining == 0) {
+                    // Hitstop just ended — inject a synthetic frame that
+                    // carries ALL button presses from the entire freeze.
+                    // This makes them visible to ButtonPressedInWindow on
+                    // the first post-hitstop frame, as if the player just
+                    // pressed them.
+                    if (_hitstopPendingPress != ButtonFlags.None) {
+                        InputFrame synthetic = frozenInput;
+                        synthetic.PressedButtons = _hitstopPendingPress;
+                        _buffer.Push(synthetic);
+                    }
+                    _hitstopPendingPress = ButtonFlags.None;
+                    _hitstopFramesElapsed = 0;
                 }
 
                 return;
@@ -354,25 +422,42 @@ namespace FightingGame.Runtime {
             if (_currentMove != null) {
                 _moveFrame++;
                 ApplyMoveMovement(); // Apply movement curves
+                ApplyAirMoveGravity(); // Gravity during air attacks
                 SpawnProjectileCheck(); // Check for projectile spawn frame
-                UpdateMovePhase();
+
+                // 2b. Check cancels BEFORE UpdateMovePhase to avoid the edge
+                // case where the move completes and clears _currentMove on the
+                // same frame the player presses a cancel button.
+                //
+                // Priority order (highest first):
+                //   0. Kara cancel (Startup frames 1-2, into special/super)
+                //   1. Gatling (GGACR: Active/Recovery, no hit-confirm needed)
+                //   2. Special/Super cancel (Active/Recovery, within CancelData window)
+                //   3. Jump cancel (Active/Recovery, requires hit-confirm)
+                bool cancelled = TryKaraCancel(input)
+                    || TryGatlingCancel(input)
+                    || TrySpecialCancel(input)
+                    || TryJumpCancel(input);
+
+                if (!cancelled)
+                    UpdateMovePhase();
             }
 
             // 3. Tick state-specific logic
             TickState(input);
 
-            // 4. Check jump cancel (before normal input resolution)
-            if (TryJumpCancel(input)) {
-                // Jump cancel succeeded — skip normal input resolution this frame
-            }
-            else {
-                // 5. Stun meter recovery
+            // 4. If no active move, try normal input resolution
+            if (_currentMove == null) {
+                // Stun meter recovery
                 TickStunRecovery();
 
-                // 6. Attempt to resolve a new move (only when actionable)
+                // Attempt to resolve a new move (only when actionable)
                 if (CanAct())
                     ResolveInput(input);
             }
+
+            // 5. Combo grace — count down and reset if no new hit arrives
+            TickComboGrace();
 
             // 6. If still idle/walking, handle movement
             if (IsMovementState())
@@ -440,6 +525,38 @@ namespace FightingGame.Runtime {
             transform.position = pos;
         }
 
+        /// <summary>
+        /// Applies gravity and horizontal drift during air attacks.
+        /// Without this, characters freeze in mid-air when performing
+        /// a move because HandleMovement and the Airborne tick don't
+        /// run while the state is Startup/Active/Recovery.
+        /// </summary>
+        private void ApplyAirMoveGravity() {
+            if (!_moveStartedAirborne) return;
+
+            // Apply gravity
+            _velocityY -= Character.Gravity;
+
+            Vector3 pos = transform.position;
+            pos.x += _velocityX;
+            pos.y += _velocityY;
+
+            // Landing during an air move
+            if (pos.y <= _groundY) {
+                pos.y = _groundY;
+                _velocityX = 0f;
+                _velocityY = 0f;
+                _moveStartedAirborne = false;
+                _airJumpsUsed = 0;
+                _airDashesUsed = 0;
+                _airborneFrameCount = 0;
+                // Don't change state — let UpdateMovePhase finish the move.
+                // The move completes on the ground normally.
+            }
+
+            transform.position = pos;
+        }
+
         // ──────────────────────────────────────
         //  PROJECTILE SPAWNING
         // ──────────────────────────────────────
@@ -458,10 +575,14 @@ namespace FightingGame.Runtime {
 
             var proj = Instantiate(_currentMove.ProjectilePrefab, spawnPos, Quaternion.identity);
 
-            // If the projectile has a Projectile component, initialize it
+            // If the projectile has a Projectile component, initialize and register it
             var projComp = proj.GetComponent<Projectile>();
             if (projComp != null) {
                 projComp.Initialize(_detector.FacingSign, gameObject);
+
+                // Register with MatchManager so it gets ticked and collides
+                if (_matchManager != null)
+                    _matchManager.RegisterProjectile(projComp);
             }
         }
 
@@ -504,8 +625,8 @@ namespace FightingGame.Runtime {
                 }
             }
 
-            // --- GATLING / TARGET COMBO ---
-            if (TryTargetCombo()) return;
+            // (Gatlings and special cancels are handled in the move-active
+            //  block of GameTick, before ResolveInput runs.)
 
             // --- COMMAND NORMALS ---
             if (_moveset.CommandNormals != null) {
@@ -550,7 +671,12 @@ namespace FightingGame.Runtime {
             _moveFrame = 0;
             _moveHasConnected = false;
             _moveWasBlocked = false;
-            _groundY = transform.position.y; // cache for move movement
+
+            // Track whether this move was initiated in the air so gravity
+            // continues to apply during Startup/Active/Recovery phases.
+            _moveStartedAirborne = transform.position.y > _groundY + GROUND_SNAP_THRESHOLD;
+
+            TrySetGroundY();
             SetState(PlayerState.Startup);
 
             if (_animator != null && !string.IsNullOrEmpty(move.AnimationStateName)
@@ -576,10 +702,29 @@ namespace FightingGame.Runtime {
                 SetState(PlayerState.Recovery);
             }
             else {
-                // Move finished
+                // Move finished — return to appropriate state based on
+                // what the player is currently holding, not just Idle.
+                // This ensures crouching players stay crouching after a
+                // move ends, so the next input resolves as 2P not 5P.
+                bool wasAirMove = _moveStartedAirborne;
                 _currentMove = null;
                 _moveFrame = 0;
-                SetState(PlayerState.Idle);
+                _moveStartedAirborne = false;
+                if (wasAirMove || transform.position.y > _groundY + GROUND_SNAP_THRESHOLD) {
+                    SetState(PlayerState.Airborne);
+                }
+                else {
+                    // Check held direction to return to the correct stance
+                    DirectionInput dir = LastInput.Direction;
+                    if (dir.HasFlag(DirectionInput.Down))
+                        SetState(PlayerState.Crouching);
+                    else if (dir.HasFlag(DirectionInput.Forward))
+                        SetState(PlayerState.WalkForward);
+                    else if (dir.HasFlag(DirectionInput.Back))
+                        SetState(PlayerState.WalkBack);
+                    else
+                        SetState(PlayerState.Idle);
+                }
             }
         }
 
@@ -618,6 +763,97 @@ namespace FightingGame.Runtime {
         private bool CanCancelCurrentInto(MoveData candidate) {
             if (_currentMove == null) return true;
             return _currentMove.CanCancelInto(candidate, _moveFrame);
+        }
+
+        /// <summary>
+        /// Kara cancel: during the first 1-2 startup frames of a normal,
+        /// the player can cancel into a special/super. This lets players
+        /// use the forward momentum of a normal's startup to extend a
+        /// special's range (classic FG technique).
+        /// </summary>
+        private bool TryKaraCancel(InputFrame input) {
+            if (_currentMove == null || _moveset == null) return false;
+            if (_state != PlayerState.Startup) return false;
+            if (!_currentMove.Cancel.AllowKaraCancel) return false;
+            if (!_currentMove.Cancel.IsInKaraWindow(_moveFrame)) return false;
+
+            // Try supers
+            if (_moveset.SuperArts != null) {
+                foreach (var sa in _moveset.SuperArts) {
+                    if (sa.Move == null || _meter < sa.CostPerUse) continue;
+                    if (_parser.TryMatchMove(sa.Move)) {
+                        _meter -= sa.CostPerUse;
+                        ExecuteMove(sa.Move);
+                        return true;
+                    }
+                }
+            }
+
+            // Try specials
+            if (_specialsSorted != null) {
+                foreach (var special in _specialsSorted) {
+                    if (special == null) continue;
+                    if (!_parser.TryMatchMove(special)) continue;
+                    if (special.IsEX && _meter < special.MeterCost) continue;
+                    if (special.IsEX) _meter -= special.MeterCost;
+                    ExecuteMove(special);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to cancel the current move into a special or super,
+        /// using the CancelData window and hierarchy rules on the current move.
+        /// This runs during Active/Recovery and respects MaxCancelLevel and
+        /// AlwaysSuperCancellable flags.
+        /// </summary>
+        private bool TrySpecialCancel(InputFrame input) {
+            if (_currentMove == null || _moveset == null) return false;
+            if (_state != PlayerState.Active && _state != PlayerState.Recovery)
+                return false;
+
+            // Must be within the per-move cancel window
+            if (!_currentMove.Cancel.IsInCancelWindow(_moveFrame))
+                return false;
+
+            // Try supers first (highest priority)
+            if (_moveset.SuperArts != null) {
+                foreach (var sa in _moveset.SuperArts) {
+                    if (sa.Move == null || _meter < sa.CostPerUse) continue;
+                    if (!_currentMove.CanCancelInto(sa.Move, _moveFrame)) continue;
+                    if (_parser.TryMatchMove(sa.Move)) {
+                        _meter -= sa.CostPerUse;
+                        ExecuteMove(sa.Move);
+                        return true;
+                    }
+                }
+            }
+
+            // Try specials + EX
+            if (_specialsSorted != null) {
+                foreach (var special in _specialsSorted) {
+                    if (special == null) continue;
+                    if (!_currentMove.CanCancelInto(special, _moveFrame)) continue;
+                    if (!_parser.TryMatchMove(special)) continue;
+
+                    if (special.IsEX) {
+                        if (_meter >= special.MeterCost) {
+                            _meter -= special.MeterCost;
+                            ExecuteMove(special);
+                            return true;
+                        }
+                    }
+                    else {
+                        ExecuteMove(special);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -662,9 +898,83 @@ namespace FightingGame.Runtime {
             _moveFrame = 0;
             _moveHasConnected = false;
             _moveWasBlocked = false;
-            _groundY = transform.position.y;
+            _moveStartedAirborne = false;
+            // Don't overwrite _groundY here — it was set correctly when
+            // we left the ground. Overwriting mid-air corrupts the landing check.
             SetState(PlayerState.PreJump);
             return true;
+        }
+
+        /// <summary>
+        /// Checks for air jump (double jump) input during the Airborne state.
+        /// Requires a fresh up press (wasn't holding up last frame) and
+        /// remaining air jumps from Character.AirJumps.
+        /// </summary>
+        private void TryAirJump(InputFrame input) {
+            bool holdUp = input.Direction.HasFlag(DirectionInput.Up);
+
+            if (Character.AirJumps > 0
+                && _airJumpsUsed < Character.AirJumps
+                && holdUp && !_wasHoldingUp) {
+                _airJumpsUsed++;
+
+                // Determine direction
+                bool holdForward = input.Direction.HasFlag(DirectionInput.Forward);
+                bool holdBack = input.Direction.HasFlag(DirectionInput.Back);
+
+                int dirIntent = 0;
+                if (holdForward) dirIntent = 1;
+                else if (holdBack) dirIntent = -1;
+
+                // Replace velocity entirely (air jump resets vertical momentum)
+                _velocityY = Character.AirJumpHeight;
+                _velocityX = dirIntent * Character.AirJumpForwardSpeed * _detector.FacingSign;
+            }
+
+            // Always update tracking (HandleMovement doesn't run while airborne)
+            _wasHoldingUp = holdUp;
+        }
+
+        /// <summary>
+        /// Checks for air dash input (double-tap forward/back while airborne).
+        /// Uses the same release-frame tracking as ground dashes.
+        /// Requires remaining air dashes and minimum airborne time.
+        /// </summary>
+        private bool TryAirDash(InputFrame input) {
+            if (Character.AirDashes <= 0) return false;
+            if (_airDashesUsed >= Character.AirDashes) return false;
+            if (_airborneFrameCount < Character.AirDashMinHeight) return false;
+
+            bool holdForward = input.Direction.HasFlag(DirectionInput.Forward);
+            bool holdBack = input.Direction.HasFlag(DirectionInput.Back);
+            bool holdDown = input.Direction.HasFlag(DirectionInput.Down);
+            bool holdUp = input.Direction.HasFlag(DirectionInput.Up);
+
+            // Forward air dash: double-tap forward (no down/up held)
+            if (holdForward && !holdDown && !holdUp
+                && (_gameFrame - _lastForwardReleaseFrame) <= DASH_INPUT_WINDOW
+                && _lastForwardReleaseFrame > 0) {
+                _lastForwardReleaseFrame = 0;
+                _airDashesUsed++;
+                _velocityY = 0f; // cancel vertical momentum (GGACR-style float)
+                _velocityX = Character.AirDashSpeed * _detector.FacingSign;
+                SetState(PlayerState.AirDashForward);
+                return true;
+            }
+
+            // Back air dash: double-tap back
+            if (holdBack && !holdDown && !holdUp
+                && (_gameFrame - _lastBackReleaseFrame) <= DASH_INPUT_WINDOW
+                && _lastBackReleaseFrame > 0) {
+                _lastBackReleaseFrame = 0;
+                _airDashesUsed++;
+                _velocityY = 0f;
+                _velocityX = -Character.AirBackDashSpeed * _detector.FacingSign;
+                SetState(PlayerState.AirDashBack);
+                return true;
+            }
+
+            return false;
         }
 
         // ──────────────────────────────────────
@@ -679,6 +989,7 @@ namespace FightingGame.Runtime {
         private int _lastBackReleaseFrame;
         private bool _wasHoldingForward;
         private bool _wasHoldingBack;
+        private bool _wasHoldingUp;
 
         private void HandleMovement(InputFrame input) {
             bool holdForward = input.Direction.HasFlag(DirectionInput.Forward);
@@ -694,6 +1005,7 @@ namespace FightingGame.Runtime {
 
             _wasHoldingForward = holdForward;
             _wasHoldingBack = holdBack;
+            _wasHoldingUp = holdUp;
 
             if (holdForward && !holdDown && !holdUp
                 && (_gameFrame - _lastForwardReleaseFrame) <= DASH_INPUT_WINDOW
@@ -721,7 +1033,7 @@ namespace FightingGame.Runtime {
                 else if (holdBack) _jumpDirectionIntent = -1;
                 else _jumpDirectionIntent = 0;
 
-                _groundY = transform.position.y;
+                TrySetGroundY();
                 SetState(PlayerState.PreJump);
             }
             else if (holdForward) {
@@ -749,30 +1061,110 @@ namespace FightingGame.Runtime {
                     if (_stateFrameCounter >= Character.PreJumpFrames) {
                         _velocityY = Character.JumpHeight;
                         _velocityX = _jumpDirectionIntent * Character.JumpForwardSpeed * _detector.FacingSign;
-                        _groundY = transform.position.y;
+                        TrySetGroundY();
+                        _airJumpsUsed = 0;
                         SetState(PlayerState.Airborne);
                     }
                     break;
 
-                case PlayerState.Airborne:
-                    _velocityY -= Character.Gravity;
-                    Vector3 airPos = transform.position;
-                    airPos.x += _velocityX;
-                    airPos.y += _velocityY;
+                case PlayerState.Airborne: {
+                        _airborneFrameCount++;
 
-                    if (airPos.y <= _groundY) {
-                        airPos.y = _groundY;
-                        _velocityX = 0f;
-                        _velocityY = 0f;
+                        // Track direction releases for air dash detection
+                        // (HandleMovement doesn't run while airborne)
+                        bool airHoldFwd = input.Direction.HasFlag(DirectionInput.Forward);
+                        bool airHoldBck = input.Direction.HasFlag(DirectionInput.Back);
+                        if (!airHoldFwd && _wasHoldingForward)
+                            _lastForwardReleaseFrame = _gameFrame;
+                        if (!airHoldBck && _wasHoldingBack)
+                            _lastBackReleaseFrame = _gameFrame;
+                        _wasHoldingForward = airHoldFwd;
+                        _wasHoldingBack = airHoldBck;
 
-                        if (Character.JumpLandingFrames > 0)
-                            SetState(PlayerState.JumpLanding);
-                        else
-                            SetState(PlayerState.Idle);
+                        _velocityY -= Character.Gravity;
+                        Vector3 airPos = transform.position;
+                        airPos.x += _velocityX;
+                        airPos.y += _velocityY;
+
+                        if (airPos.y <= _groundY) {
+                            airPos.y = _groundY;
+                            _velocityX = 0f;
+                            _velocityY = 0f;
+                            _airJumpsUsed = 0;
+                            _airDashesUsed = 0;
+                            _airborneFrameCount = 0;
+
+                            if (Character.JumpLandingFrames > 0)
+                                SetState(PlayerState.JumpLanding);
+                            else
+                                SetState(PlayerState.Idle);
+                        }
+                        else {
+                            // Air dash check first (consumes double-tap input)
+                            if (!TryAirDash(input)) {
+                                // Air jump check (double jump / triple jump)
+                                TryAirJump(input);
+                            }
+                        }
+
+                        transform.position = airPos;
+                        break;
                     }
 
-                    transform.position = airPos;
-                    break;
+                case PlayerState.AirDashForward: {
+                        // Fixed-speed horizontal movement, minimal gravity during dash
+                        Vector3 adPos = transform.position;
+                        adPos.x += _velocityX;
+                        _velocityY -= Character.Gravity * 0.2f;
+                        adPos.y += _velocityY;
+
+                        if (adPos.y <= _groundY) {
+                            adPos.y = _groundY;
+                            _velocityX = 0f;
+                            _velocityY = 0f;
+                            _airDashesUsed = 0;
+                            _airJumpsUsed = 0;
+                            _airborneFrameCount = 0;
+                            SetState(PlayerState.Idle);
+                            transform.position = adPos;
+                            break;
+                        }
+
+                        if (_stateFrameCounter >= Character.AirDashDuration) {
+                            _velocityX *= 0.3f; // bleed off horizontal speed
+                            SetState(PlayerState.Airborne);
+                        }
+
+                        transform.position = adPos;
+                        break;
+                    }
+
+                case PlayerState.AirDashBack: {
+                        Vector3 abdPos = transform.position;
+                        abdPos.x += _velocityX;
+                        _velocityY -= Character.Gravity * 0.2f;
+                        abdPos.y += _velocityY;
+
+                        if (abdPos.y <= _groundY) {
+                            abdPos.y = _groundY;
+                            _velocityX = 0f;
+                            _velocityY = 0f;
+                            _airDashesUsed = 0;
+                            _airJumpsUsed = 0;
+                            _airborneFrameCount = 0;
+                            SetState(PlayerState.Idle);
+                            transform.position = abdPos;
+                            break;
+                        }
+
+                        if (_stateFrameCounter >= Character.AirBackDashDuration) {
+                            _velocityX = 0f;
+                            SetState(PlayerState.Airborne);
+                        }
+
+                        transform.position = abdPos;
+                        break;
+                    }
 
                 case PlayerState.JumpLanding:
                     if (_stateFrameCounter >= Character.JumpLandingFrames)
@@ -806,7 +1198,11 @@ namespace FightingGame.Runtime {
                     _stunFramesRemaining--;
                     if (_stunFramesRemaining <= 0) {
                         _pushbackVelocityX = 0f;
-                        ResetComboState();
+                        // Start grace window instead of immediately resetting.
+                        // If the defender gets hit again within COMBO_GRACE_WINDOW
+                        // frames, the combo continues seamlessly.
+                        if (_isBeingComboed)
+                            _comboGraceFrames = COMBO_GRACE_WINDOW;
                         SetState(PlayerState.Idle);
                     }
                     break;
@@ -1016,6 +1412,30 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         /// <summary>
+        /// Ticks the combo grace timer. When the defender leaves hitstun
+        /// and enters a neutral state, the grace timer counts down. If it
+        /// reaches zero without a new hit arriving, the combo truly ends.
+        /// Getting hit again (TakeHit sets _comboGraceFrames = 0) cancels
+        /// the grace period and continues the combo.
+        /// </summary>
+        private void TickComboGrace() {
+            if (_comboGraceFrames <= 0) return;
+
+            // Only count down in neutral states — if we're back in hitstun
+            // or launched, a new hit arrived and the grace period is moot.
+            if (_state == PlayerState.Hitstun || _state == PlayerState.Launched
+                || _state == PlayerState.Blockstun || _state == PlayerState.Knockdown
+                || _state == PlayerState.Crumple || _state == PlayerState.Thrown) {
+                _comboGraceFrames = 0; // hit arrived, combo continues naturally
+                return;
+            }
+
+            _comboGraceFrames--;
+            if (_comboGraceFrames <= 0)
+                ResetComboState();
+        }
+
+        /// <summary>
         /// Called when combo ends (opponent returns to neutral).
         /// </summary>
         private void ResetComboState() {
@@ -1023,6 +1443,7 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
+            _comboGraceFrames = 0;
         }
 
         // ──────────────────────────────────────
@@ -1098,24 +1519,67 @@ namespace FightingGame.Runtime {
         }
 
         // ──────────────────────────────────────
-        //  GATLING / TARGET COMBOS
+        //  GATLING CANCEL (GGACR GATLING TABLE)
         // ──────────────────────────────────────
 
-        private bool TryTargetCombo() {
-            if (_moveset.TargetCombos == null) return false;
+        /// <summary>
+        /// Checks the character's Gatling table and fires the next move in
+        /// the chain if the player's buffered input matches.
+        ///
+        /// GGACR Gatling rules:
+        ///   - Gatling cancels fire from Active OR Recovery frames.
+        ///   - They do NOT require the move to have hit (unlike special/jump cancels).
+        ///   - The current move must be within its cancel window.
+        ///   - Each Gatling entry is an ordered sequence; the move currently
+        ///     executing must match the entry at position [i], and the input
+        ///     must match the move at position [i+1].
+        ///   - If the current move appears multiple times across different
+        ///     sequences, all sequences are checked (e.g. 5S can Gatling into
+        ///     both 5HS and 2HS if both sequences are defined).
+        /// </summary>
+        /// <summary>
+        /// GGACR-style Gatling cancel. Fires from the first Active frame through
+        /// the end of Recovery — does NOT require the move's CancelData window
+        /// (that window governs special/super cancels separately).
+        ///
+        /// Gatlings fire on whiff too (GGACR rule). Connection is NOT required.
+        ///
+        /// The Gatling table in MovesetData defines which moves chain into which.
+        /// A move can appear as a source in multiple routes (e.g. cS → 5HS and
+        /// cS → 2D are both valid if both routes exist). All matching routes are
+        /// checked, and the first input match wins.
+        /// </summary>
+        private bool TryGatlingCancel(InputFrame input) {
+            if (_moveset == null || _moveset.TargetCombos == null) return false;
             if (_currentMove == null) return false;
 
+            // Gatlings fire from Active through Recovery (not Startup).
+            if (_state != PlayerState.Active && _state != PlayerState.Recovery)
+                return false;
+
+            // Gatlings require contact (hit or block) — no whiff cancels.
+            if (!_moveHasConnected)
+                return false;
+
+            // Collect all valid "next" moves from every Gatling route where
+            // _currentMove is the source. This allows many-to-many routing
+            // without the designer needing to duplicate sequences.
+            // We check higher-priority targets first (specials > normals)
+            // by sorting candidates, but in practice GGACR Gatlings are
+            // normal→normal chains, so first-match is fine.
             foreach (var tc in _moveset.TargetCombos) {
                 if (tc.Sequence == null || tc.Sequence.Length < 2) continue;
 
                 for (int i = 0; i < tc.Sequence.Length - 1; i++) {
-                    if (tc.Sequence[i] == _currentMove) {
-                        MoveData next = tc.Sequence[i + 1];
-                        if (_parser.TryMatchMove(next)
-                            && _currentMove.Cancel.IsInCancelWindow(_moveFrame)) {
-                            ExecuteMove(next);
-                            return true;
-                        }
+                    if (tc.Sequence[i] != _currentMove) continue;
+
+                    MoveData next = tc.Sequence[i + 1];
+                    if (next == null) continue;
+
+                    // Check if the player's buffered input matches this target
+                    if (_parser.TryMatchMove(next)) {
+                        ExecuteMove(next);
+                        return true;
                     }
                 }
             }
@@ -1139,6 +1603,7 @@ namespace FightingGame.Runtime {
         public void TakeHit(MoveData move, bool blocked, bool counterHit = false,
             BlockType blockType = BlockType.Normal) {
             _currentMove = null;
+            _moveStartedAirborne = false;
             _framesSinceLastHit = 0;
             _lastHitWasCounterHit = counterHit;
 
@@ -1151,10 +1616,18 @@ namespace FightingGame.Runtime {
 
                 _health -= chipDamage;
 
-                // Track whether this is an air block (gravity continues during blockstun)
+                // Capture pre-block stance for animation selection
+                bool wasCrouching = (_state == PlayerState.Crouching);
                 _isAirBlocking = (_state == PlayerState.Airborne || _state == PlayerState.Launched);
 
                 SetState(PlayerState.Blockstun);
+
+                // Play stance-specific block animation
+                string blockAnim = _isAirBlocking ? "AirBlockstun"
+                    : wasCrouching ? "CrouchBlockstun"
+                    : "Blockstun";
+                if (_animator != null && HasAnimatorState(blockAnim))
+                    _animator.Play(blockAnim, 0, 0f);
 
                 // Determine blockstun based on block type and air/ground
                 if (_isAirBlocking) {
@@ -1201,6 +1674,7 @@ namespace FightingGame.Runtime {
             else {
                 // --- COMBO DAMAGE SCALING ---
                 _isBeingComboed = true;
+                _comboGraceFrames = 0; // cancel any pending grace reset — combo continues
                 _comboHitCount++;
 
                 // GGACR initial (forced) proration: if this move STARTS the combo
@@ -1263,6 +1737,7 @@ namespace FightingGame.Runtime {
         public void TakeProjectileHit(Projectile proj, bool blocked,
             BlockType blockType = BlockType.Normal) {
             _currentMove = null;
+            _moveStartedAirborne = false;
             _framesSinceLastHit = 0;
 
             if (blocked) {
@@ -1272,8 +1747,16 @@ namespace FightingGame.Runtime {
 
                 _health -= chipDamage;
 
+                bool wasCrouchingProj = (_state == PlayerState.Crouching);
                 _isAirBlocking = (_state == PlayerState.Airborne || _state == PlayerState.Launched);
                 SetState(PlayerState.Blockstun);
+
+                // Play stance-specific block animation
+                string projBlockAnim = _isAirBlocking ? "AirBlockstun"
+                    : wasCrouchingProj ? "CrouchBlockstun"
+                    : "Blockstun";
+                if (_animator != null && HasAnimatorState(projBlockAnim))
+                    _animator.Play(projBlockAnim, 0, 0f);
 
                 // Use projectile's blockstun value directly
                 _stunFramesRemaining = proj.Blockstun;
@@ -1291,7 +1774,9 @@ namespace FightingGame.Runtime {
             }
             else {
                 // Projectile hit
+                bool wasCrouchingHit = (_state == PlayerState.Crouching);
                 _isBeingComboed = true;
+                _comboGraceFrames = 0; // cancel any pending grace reset
                 _comboHitCount++;
 
                 int rawDmg = Mathf.RoundToInt(proj.Damage * Character.DefenseModifier);
@@ -1315,6 +1800,7 @@ namespace FightingGame.Runtime {
                 // Projectile hitstun — enter Hitstun state
                 _stunFramesRemaining = proj.Hitstun;
                 SetState(PlayerState.Hitstun);
+                PlayStanceHitstunAnim(wasCrouchingHit);
             }
 
             // Hitstop for projectile hits (use a base value)
@@ -1346,7 +1832,7 @@ namespace FightingGame.Runtime {
                     _velocityX = -move.HitPushbackVelocity.x * _detector.FacingSign * 0.5f;
                     _velocityY = move.HitPushbackVelocity.y;
                     if (_velocityY <= 0) _velocityY = 0.15f;
-                    _groundY = transform.position.y;
+                    TrySetGroundY();
                     SetState(PlayerState.Launched);
                     _stunFramesRemaining = airUntechable;
                     break;
@@ -1371,6 +1857,7 @@ namespace FightingGame.Runtime {
                     SetState(PlayerState.Hitstun);
                     _stunFramesRemaining = groundHitstun;
                     StartHitPushback(move, groundHitstun, 1.5f);
+                    PlayStanceHitstunAnim(wasCrouching);
                     break;
 
                 case HitEffect.GroundBounce:
@@ -1378,7 +1865,7 @@ namespace FightingGame.Runtime {
                     _velocityX = -move.HitPushbackVelocity.x * _detector.FacingSign * 0.3f;
                     _velocityY = move.HitPushbackVelocity.y * 1.5f;
                     if (_velocityY <= 0) _velocityY = 0.2f;
-                    _groundY = transform.position.y;
+                    TrySetGroundY();
                     SetState(PlayerState.Launched);
                     _stunFramesRemaining = airUntechable;
                     break;
@@ -1387,6 +1874,7 @@ namespace FightingGame.Runtime {
                     SetState(PlayerState.Hitstun);
                     _stunFramesRemaining = Mathf.RoundToInt(groundHitstun * 1.3f);
                     StartHitPushback(move, _stunFramesRemaining);
+                    PlayStanceHitstunAnim(wasCrouching);
                     break;
 
                 case HitEffect.SpinOut:
@@ -1394,7 +1882,7 @@ namespace FightingGame.Runtime {
                     _velocityX = -move.HitPushbackVelocity.x * _detector.FacingSign * 0.7f;
                     _velocityY = move.HitPushbackVelocity.y * 0.8f;
                     if (_velocityY <= 0) _velocityY = 0.1f;
-                    _groundY = transform.position.y;
+                    TrySetGroundY();
                     SetState(PlayerState.Launched);
                     _stunFramesRemaining = airUntechable;
                     break;
@@ -1405,8 +1893,25 @@ namespace FightingGame.Runtime {
                     SetState(PlayerState.Hitstun);
                     _stunFramesRemaining = groundHitstun;
                     StartHitPushback(move, groundHitstun);
+                    PlayStanceHitstunAnim(wasCrouching);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Plays the correct hitstun animation based on the defender's stance
+        /// at the moment of impact. Standing uses "Hitstun", crouching uses
+        /// "CrouchHitstun". Falls back to the default if the variant doesn't
+        /// exist in the Animator.
+        /// </summary>
+        private void PlayStanceHitstunAnim(bool wasCrouching) {
+            if (_animator == null) return;
+
+            string hitAnim = wasCrouching ? "CrouchHitstun" : "Hitstun";
+            if (HasAnimatorState(hitAnim))
+                _animator.Play(hitAnim, 0, 0f);
+            else if (wasCrouching && HasAnimatorState("Hitstun"))
+                _animator.Play("Hitstun", 0, 0f); // fallback if CrouchHitstun doesn't exist
         }
 
         /// <summary>
@@ -1859,6 +2364,8 @@ namespace FightingGame.Runtime {
                 case PlayerState.PreJump: return "PreJump";
                 case PlayerState.Airborne: return "Jump";
                 case PlayerState.JumpLanding: return "Landing";
+                case PlayerState.AirDashForward: return "AirDashForward";
+                case PlayerState.AirDashBack: return "AirDashBack";
                 case PlayerState.DashForward: return "DashForward";
                 case PlayerState.DashBack: return "DashBack";
                 case PlayerState.Hitstun: return "Hitstun";

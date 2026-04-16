@@ -18,53 +18,89 @@ MonoBehaviour:
   FullBodyArt: {fileID: -8472544460242366044, guid: 118a4905b5b289040b08ea93f79d9fe7, type: 3}
   CharacterPrefab: {fileID: 250968438874482646, guid: 725e6261160c74c4ea9cbd82a380ff2f, type: 3}
   Moveset: {fileID: 11400000, guid: 15d73f00e6de44e46bb2a625048d30db, type: 2}
-  SelectedSuperArt: 0
-  MaxHealth: 1200
+  MaxHealth: 460
   MaxStun: 72
   StunRecoveryRate: 1
   StunDuration: 180
-  WalkForwardSpeed: 0.04
+  WalkForwardSpeed: 0.08
   WalkBackwardSpeed: 0.03
-  JumpForwardSpeed: 0.045
-  JumpHeight: 0.12
-  Gravity: 0.008
+  JumpForwardSpeed: 0.07
+  JumpHeight: 0.2
+  Gravity: 0.01
   PreJumpFrames: 4
   JumpLandingFrames: 2
-  DashDuration: 18
-  DashDistance: 1.5
+  AirJumps: 3
+  AirJumpHeight: 0.15
+  AirJumpForwardSpeed: 0.07
+  AirDashes: 2
+  AirDashSpeed: 0.4
+  AirDashDuration: 12
+  AirBackDashSpeed: 0.15
+  AirBackDashDuration: 18
+  AirDashMinHeight: 3
+  DashDuration: 12
+  DashDistance: 2.5
   BackDashDuration: 22
   BackDashDistance: 1.2
   BackDashInvincibleFrames: 5
   DefenseModifier: 1
   BlockPushbackModifier: 1
+  FDPushbackMultiplier: 1.5
+  InstantBlockWindow: 8
+  GuardCrushStaggerFrames: 40
+  ThrowStartupFrames: 3
+  ThrowTechWindow: 10
+  WakeupReversalWindow: 4
+  BackRollDistance: 1.5
+  BackRollFrames: 20
+  BackRollInvincibleFrames: 14
   StandingHurtbox:
-    Label: 
-    Hurtboxes: []
+    Label: Stand
+    Hurtboxes:
+    - Offset: {x: 0, y: 0}
+      Size: {x: 0.6, y: 0.85}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
     ThrowInvincible: 0
   CrouchingHurtbox:
-    Label: 
-    Hurtboxes: []
+    Label: Crouch
+    Hurtboxes:
+    - Offset: {x: 0, y: 0}
+      Size: {x: 0.6, y: 0.45}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
     ThrowInvincible: 0
   AirborneHurtbox:
-    Label: 
-    Hurtboxes: []
+    Label: Airborne
+    Hurtboxes:
+    - Offset: {x: 0, y: 0.6}
+      Size: {x: 0.6, y: 0.45}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
     ThrowInvincible: 0
   Pushbox:
     Offset: {x: 0, y: 0}
-    Size: {x: 0, y: 0}
+    Size: {x: 0.5, y: 0.5}
   ParryWindowFrames: 10
   ParryWhiffRecovery: 20
   ParryMeterGain: 10
   ParryHitStop: 12
+  MaxMeter: 10000
+  TensionGainForwardWalk: 8
+  TensionGainForwardDash: 16
+  TensionGainOnHit: 72
+  TensionGainOnBlock: 36
+  TensionGainOnWhiff: 18
+  TensionGainPerAttackFrame: 2
+  TensionPulseThreshold: 120
+  TensionDrainRate: 4
+  NegativePenaltyDuration: 600
+  FaultlessDefenseCostPerFrame: 50
   HitVoiceClips: []
   AttackVoiceClips: []
   ColorPalettes: []
+  PillarboxArtScale: 1
+  PillarboxArtOffsetY: 0

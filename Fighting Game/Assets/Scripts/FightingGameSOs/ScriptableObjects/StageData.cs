@@ -38,11 +38,11 @@ namespace FightingGame.ScriptableObjects {
         // ──────────────────────────────────────
 
         [Header("Stage Bounds")]
-        [Tooltip("Left boundary of the stage (world X).")]
-        public float LeftBound = -6f;
+        [Tooltip("Left boundary of the stage (world X). GGACR stages are roughly 7–9 units wide total.")]
+        public float LeftBound = -3.5f;
 
-        [Tooltip("Right boundary of the stage (world X).")]
-        public float RightBound = 6f;
+        [Tooltip("Right boundary of the stage (world X). GGACR stages are roughly 7–9 units wide total.")]
+        public float RightBound = 3.5f;
 
         [Tooltip("Ground Y position.")]
         public float GroundY = 0f;

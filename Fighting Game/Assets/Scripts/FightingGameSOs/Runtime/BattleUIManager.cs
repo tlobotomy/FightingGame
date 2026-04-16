@@ -280,16 +280,24 @@ namespace FightingGame.Runtime {
                 // Active combo — keep visible, reset timer
                 label.gameObject.SetActive(true);
                 label.text = $"{current} HITS";
+                label.color = ComboTextColor;
                 hideTimer = COMBO_DISPLAY_LINGER;
                 lastCombo = current;
             }
             else if (lastCombo >= 2) {
-                // Combo just ended — linger, then hide
-                hideTimer -= Time.deltaTime;
+                // Combo just ended — linger with final count, then hide
+                // Use unscaledDeltaTime so time-scale changes don't affect display
+                hideTimer -= Time.unscaledDeltaTime;
                 if (hideTimer <= 0f) {
                     label.gameObject.SetActive(false);
                     lastCombo = 0;
                 }
+            }
+            else {
+                // No active combo, no linger — make sure it's hidden
+                if (label.gameObject.activeSelf)
+                    label.gameObject.SetActive(false);
+                lastCombo = 0;
             }
         }
 

@@ -18,10 +18,9 @@ MonoBehaviour:
   BackgroundPrefab: {fileID: 1814292073256504259, guid: 9c307b33f43eb094099fddebadb3f979, type: 3}
   LeftBound: -235
   RightBound: 235
-  GroundY: -522
+  GroundY: -7
   BGM: {fileID: 0}
   BGMVolume: 1
   BGMLoop: 1
   DamageMultiplier: 1
   RoundTimeOverride: 0
-  GravityScale: 1

@@ -28,7 +28,14 @@ namespace FightingGame.Data {
         Forward = 1 << 3  // "right" relative to facing
     }
 
-
+    /// <summary>
+    /// Guilty Gear XX 4+1 button layout.
+    /// P  = Punch
+    /// K  = Kick
+    /// S  = Slash
+    /// HS = Heavy Slash
+    /// D  = Dust (universal overhead / launcher)
+    /// </summary>
     public enum ButtonInput {
         None,
         Punch,
@@ -106,10 +113,10 @@ namespace FightingGame.Data {
     /// and whether the opponent must block high or low.
     /// </summary>
     public enum AttackHeight {
-        High,       // must block standing
-        Mid,        // can block either way
+        Mid,        // can block either way (default — most normals are mid)
+        High,       // must block standing (functionally same as Overhead)
         Low,        // must block crouching
-        Overhead,   // hits crouching block
+        Overhead,   // hits crouching block (alias for High, kept for clarity)
         Unblockable
     }
 

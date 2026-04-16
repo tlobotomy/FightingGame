@@ -81,6 +81,35 @@ namespace FightingGame.ScriptableObjects {
         [Tooltip("Landing recovery frames.")]
         [Min(0)] public int JumpLandingFrames = 2;
 
+        [Tooltip("Number of air jumps allowed (1 = double jump, 2 = triple jump like Chipp). 0 = no air jump.")]
+        [Min(0)] public int AirJumps = 1;
+
+        [Tooltip("Air jump vertical velocity (can differ from ground jump).")]
+        public float AirJumpHeight = 0.10f;
+
+        [Tooltip("Air jump horizontal speed multiplier.")]
+        public float AirJumpForwardSpeed = 0.04f;
+
+        [Header("Air Dash")]
+        [Tooltip("Number of air dashes allowed per airtime (0 = no air dash). " +
+                 "Most GGACR characters get 1; Millia/Chipp get 2.")]
+        [Min(0)] public int AirDashes = 1;
+
+        [Tooltip("Air dash horizontal speed (units per frame).")]
+        public float AirDashSpeed = 0.08f;
+
+        [Tooltip("Air dash duration in frames.")]
+        [Min(1)] public int AirDashDuration = 16;
+
+        [Tooltip("Air back dash horizontal speed.")]
+        public float AirBackDashSpeed = 0.06f;
+
+        [Tooltip("Air back dash duration in frames.")]
+        [Min(1)] public int AirBackDashDuration = 14;
+
+        [Tooltip("Minimum airborne frames before air dash is allowed (prevents instant air dash from ground).")]
+        [Min(0)] public int AirDashMinHeight = 4;
+
         [Header("Dash")]
         [Tooltip("Forward dash total duration in frames.")]
         [Min(1)] public int DashDuration = 18;
