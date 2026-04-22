@@ -26,10 +26,10 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 1
+    Startup: 6
+    Active: 4
+    Recovery: 10
+    AttackLevel: 3
     UseHitstopOverride: 0
     HitstopOverride: 0
     UseBlockstopOverride: 0
@@ -38,7 +38,7 @@ MonoBehaviour:
     BlockstunOverride: 0
     UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 30
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
@@ -47,8 +47,8 @@ MonoBehaviour:
     MeterGainOnWhiff: 0
   Height: 0
   OnHitEffect: 0
-  HitPushbackVelocity: {x: 0, y: 0}
-  BlockPushbackVelocity: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.06, y: 0}
+  BlockPushbackVelocity: {x: 0.12, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
@@ -60,8 +60,16 @@ MonoBehaviour:
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 0
+    Hitboxes:
+    - Offset: {x: 0.06, y: 0}
+      Size: {x: 0.34, y: 0.35}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
   HurtboxOverrides: []
   HurtboxOverrideFrameRanges: []
   Movement:

@@ -4,8 +4,18 @@ using FightingGame.ScriptableObjects;
 
 namespace FightingGame.Runtime {
     /// <summary>
-    /// Reads the InputBuffer and attempts to match its contents against
-    /// the MotionInput defined on MoveData assets.
+    /// Reads the InputBuffer and matches its contents against the
+    /// MotionInput defined on MoveData assets.
+    ///
+    /// Sequence matching uses the Fearless Night walk-backward pattern:
+    /// starting from the most recent buffer entry, walk backward and
+    /// match each directional step in reverse order. If all steps are
+    /// found within the input window, the motion is complete.
+    ///
+    /// All directions in the buffer are pre-flipped by InputDetector
+    /// based on FacingSign, so the parser always thinks in terms of
+    /// "forward" (6) and "back" (4), never raw left/right. Side
+    /// switches mid-match are handled automatically.
     ///
     /// Supports:
     ///  - Sequence motions (QCF, DP, HCF, 360, double QCF, custom)
@@ -20,18 +30,19 @@ namespace FightingGame.Runtime {
         private readonly InputBuffer _buffer;
 
         /// <summary>
-        /// How many frames of leniency when walking a directional sequence.
-        /// A step can be "missing" for up to this many frames and the
-        /// sequence still matches. Handles sloppy stick movement.
-        /// </summary>
-        public int DirectionLeniency = 2;
-
-        /// <summary>
         /// How many frames after a button press it still counts as
         /// "just pressed" for move activation. Effectively a small
         /// input buffer window on top of the motion window.
         /// </summary>
-        public int ButtonPressWindow = 4;
+        public int ButtonPressWindow = 5;
+
+        /// <summary>
+        /// Default input window for sequence motions when the move
+        /// doesn't specify one. 16 frames is ~267ms at 60fps —
+        /// tight enough to prevent accidental inputs but lenient
+        /// enough for comfortable execution.
+        /// </summary>
+        public int DefaultMotionWindow = 16;
 
         public InputParser(InputBuffer buffer) {
             _buffer = buffer;
@@ -134,8 +145,9 @@ namespace FightingGame.Runtime {
             if (btn == ButtonInput.None) return false;
 
             InputFrame current = _buffer.Current;
+            DirectionInput currentDir = current.Direction;
             bool directionHeld = requiredDir == DirectionInput.None
-                || current.Direction.HasFlag(requiredDir);
+                || (currentDir & requiredDir) == requiredDir;
 
             return directionHeld && _buffer.ButtonPressedInWindow(btn, ButtonPressWindow);
         }
@@ -145,76 +157,26 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         /// <summary>
-        /// Walks backward through the buffer trying to find each step of
-        /// the motion sequence in reverse order, ending with a button press.
+        /// Matches a directional sequence using the walk-backward algorithm.
         ///
-        /// The algorithm is lenient: each directional step just needs to
-        /// appear somewhere within the window, in the correct order.
-        /// Small gaps (where the stick passes through neutral) are tolerated.
+        /// Gets the canonical numpad sequence from the motion type (e.g.
+        /// QCF = [2, 3, 6]), then delegates to InputBuffer.CheckSequence
+        /// which walks backward from the current frame matching each step.
+        ///
+        /// The button must have been pressed (or released for negative edge)
+        /// within ButtonPressWindow frames.
         /// </summary>
         private bool MatchSequence(MotionInput motion) {
-            // Button must have been pressed (or released for negative edge) recently
+            // Button must have been pressed (or released) recently
             if (!HasButtonActivation(motion.Button, motion.AllowNegativeEdge))
                 return false;
 
             NumpadDirection[] sequence = motion.GetSequence();
             if (sequence == null || sequence.Length == 0) return false;
 
-            int window = motion.InputWindow > 0 ? motion.InputWindow : 20;
-            int limit = Mathf.Min(window, _buffer.Count);
+            int window = motion.InputWindow > 0 ? motion.InputWindow : DefaultMotionWindow;
 
-            // Walk the sequence backward (last step first, since we're
-            // reading the buffer from most-recent to oldest)
-            int seqIndex = sequence.Length - 1;
-            int gapFrames = 0; // frames since last matched step
-
-            for (int i = 0; i < limit; i++) {
-                InputFrame frame = _buffer.Get(i);
-                NumpadDirection frameDir = InputDetector.ToNumpad(frame.Direction);
-                NumpadDirection target = sequence[seqIndex];
-
-                if (DirectionMatches(frameDir, target)) {
-                    seqIndex--;
-                    gapFrames = 0;
-
-                    if (seqIndex < 0)
-                        return true; // full sequence matched
-                }
-                else {
-                    gapFrames++;
-
-                    // If the gap is too large between two steps, bail.
-                    // This prevents matching stale inputs from seconds ago.
-                    if (gapFrames > DirectionLeniency + 4) {
-                        // Don't immediately fail — there might be an older
-                        // valid sequence. But for performance we bail here.
-                        break;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Lenient direction comparison. A frame's direction matches
-        /// the target if it contains at least the same directional components.
-        ///
-        /// e.g. DownForward (3) matches a target of Down (2) — this handles
-        /// the common case of players rolling through diagonals.
-        /// But Down (2) does NOT match a target of DownForward (3) —
-        /// the target requires the forward component.
-        /// </summary>
-        private bool DirectionMatches(NumpadDirection actual, NumpadDirection target) {
-            if (actual == target) return true;
-
-            // Convert both to flags and check containment
-            DirectionInput actualFlags = InputDetector.FromNumpad(actual);
-            DirectionInput targetFlags = InputDetector.FromNumpad(target);
-
-            // Actual must contain ALL the flags of target
-            return targetFlags != DirectionInput.None
-                && (actualFlags & targetFlags) == targetFlags;
+            return _buffer.CheckSequence(sequence, window);
         }
 
         // ──────────────────────────────────────
@@ -238,7 +200,8 @@ namespace FightingGame.Runtime {
 
             // Release direction must be present on the current frame
             InputFrame current = _buffer.Current;
-            if (!current.Direction.HasFlag(releaseDir))
+            DirectionInput currentDir = current.Direction;
+            if ((currentDir & releaseDir) != releaseDir)
                 return false;
 
             // Check that the charge direction was held for enough frames

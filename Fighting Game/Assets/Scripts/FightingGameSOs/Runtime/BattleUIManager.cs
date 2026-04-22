@@ -139,8 +139,10 @@ namespace FightingGame.Runtime {
             UpdateMeterBar(P2MeterBar, _p2);
             UpdateStunBar(P1StunBar, _p1);
             UpdateStunBar(P2StunBar, _p2);
-            UpdateComboDisplay(P1ComboText, _p1, ref _p1LastCombo, ref _p1ComboHideTimer);
-            UpdateComboDisplay(P2ComboText, _p2, ref _p2LastCombo, ref _p2ComboHideTimer);
+            // Combo counter shows on the ATTACKER's side — P1's counter reads
+            // P2's ComboHitCount (P2 is the one being comboed by P1), and vice versa.
+            UpdateComboDisplay(P1ComboText, _p2, ref _p1LastCombo, ref _p1ComboHideTimer);
+            UpdateComboDisplay(P2ComboText, _p1, ref _p2LastCombo, ref _p2ComboHideTimer);
         }
 
         // ──────────────────────────────────────
@@ -253,7 +255,8 @@ namespace FightingGame.Runtime {
 
         /// <summary>
         /// Called by MatchManager each time a hit lands in a combo.
-        /// playerIndex is the DEFENDER (the one being comboed).
+        /// playerIndex is the ATTACKER (the one performing the combo).
+        /// The counter displays on the attacker's side of the screen.
         /// </summary>
         public void SetComboCount(int playerIndex, int hits) {
             TMP_Text label = (playerIndex == 0) ? P1ComboText : P2ComboText;

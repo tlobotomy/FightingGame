@@ -89,7 +89,7 @@ namespace FightingGame.Runtime {
             LastDirection = dir;
 
             var frame = new InputFrame {
-                Direction = dir,
+                Numpad = ToNumpad(dir),
                 HeldButtons = _heldButtons,
                 PressedButtons = _pressedThisFrame,
                 ReleasedButtons = _releasedThisFrame,

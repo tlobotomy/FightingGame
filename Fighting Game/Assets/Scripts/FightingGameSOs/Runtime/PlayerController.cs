@@ -144,15 +144,6 @@ namespace FightingGame.Runtime {
         private float _comboDamageScaling;  // current scaling multiplier (starts at 1.0)
         private int _jugglePointsUsed;      // juggle points consumed so far
         private bool _isBeingComboed;       // true while in a combo (no neutral reset)
-        private int _comboGraceFrames;      // frames remaining before combo truly resets after hitstun ends
-
-        /// <summary>
-        /// Grace window (in frames) after hitstun/blockstun ends before the
-        /// combo counter resets. If the defender gets hit again within this
-        /// window, the combo continues. This accounts for Gatling chains where
-        /// the next hit's startup barely outlasts the previous hit's hitstun.
-        /// </summary>
-        private const int COMBO_GRACE_WINDOW = 4;
 
         // Knockdown / wakeup
         private const int HARD_KNOCKDOWN_FRAMES = 30;
@@ -274,7 +265,7 @@ namespace FightingGame.Runtime {
 
         private void Awake() {
             _detector = GetComponent<InputDetector>();
-            _buffer = new InputBuffer(60);
+            _buffer = new InputBuffer(40);
             _parser = new InputParser(_buffer);
         }
 
@@ -308,7 +299,6 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
-            _comboGraceFrames = 0;
             _invincibleFramesRemaining = 0;
             _framesSinceLastHit = 999;
             _faultlessDefenseActive = false;
@@ -340,7 +330,6 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
-            _comboGraceFrames = 0;
             _invincibleFramesRemaining = 0;
             _framesSinceLastHit = 999;
             _currentMove = null;
@@ -381,7 +370,7 @@ namespace FightingGame.Runtime {
                 // Poll input and push to the buffer so direction history
                 // remains intact (needed for charge detection).
                 // ALSO accumulate any button presses — these tend to scroll
-                // out of ButtonPressWindow (4 frames) during long hitstop
+                // out of ButtonPressWindow (5 frames) during long hitstop
                 // (11+ frames), making cancel inputs disappear before any
                 // cancel check ever runs.
                 InputFrame frozenInput = _detector.Poll(_gameFrame);
@@ -456,8 +445,6 @@ namespace FightingGame.Runtime {
                     ResolveInput(input);
             }
 
-            // 5. Combo grace — count down and reset if no new hit arrives
-            TickComboGrace();
 
             // 6. If still idle/walking, handle movement
             if (IsMovementState())
@@ -687,6 +674,29 @@ namespace FightingGame.Runtime {
                 _audioSource.PlayOneShot(move.SwingSound);
         }
 
+        /// <summary>
+        /// Computes the move phase directly from _moveFrame and the move's
+        /// frame data, WITHOUT relying on _state.
+        ///
+        /// This eliminates the state-lag problem: _state is set by the
+        /// PREVIOUS frame's UpdateMovePhase, but cancels now run BEFORE
+        /// UpdateMovePhase. On the first Active frame, _state would still
+        /// read Startup — causing cancel checks to fail for one frame.
+        /// This helper gives the TRUE phase for the current _moveFrame.
+        /// </summary>
+        private PlayerState GetCurrentMovePhase() {
+            if (_currentMove == null) return _state;
+
+            int firstActive = _currentMove.Frames.FirstActiveFrame;
+            int lastActive = _currentMove.Frames.LastActiveFrame;
+            int totalFrames = _currentMove.Frames.TotalFrames;
+
+            if (_moveFrame < firstActive) return PlayerState.Startup;
+            else if (_moveFrame <= lastActive) return PlayerState.Active;
+            else if (_moveFrame < totalFrames) return PlayerState.Recovery;
+            else return _state; // move finished
+        }
+
         private void UpdateMovePhase() {
             int firstActive = _currentMove.Frames.FirstActiveFrame;
             int lastActive = _currentMove.Frames.LastActiveFrame;
@@ -773,7 +783,7 @@ namespace FightingGame.Runtime {
         /// </summary>
         private bool TryKaraCancel(InputFrame input) {
             if (_currentMove == null || _moveset == null) return false;
-            if (_state != PlayerState.Startup) return false;
+            if (GetCurrentMovePhase() != PlayerState.Startup) return false;
             if (!_currentMove.Cancel.AllowKaraCancel) return false;
             if (!_currentMove.Cancel.IsInKaraWindow(_moveFrame)) return false;
 
@@ -812,7 +822,8 @@ namespace FightingGame.Runtime {
         /// </summary>
         private bool TrySpecialCancel(InputFrame input) {
             if (_currentMove == null || _moveset == null) return false;
-            if (_state != PlayerState.Active && _state != PlayerState.Recovery)
+            PlayerState phase = GetCurrentMovePhase();
+            if (phase != PlayerState.Active && phase != PlayerState.Recovery)
                 return false;
 
             // Must be within the per-move cancel window
@@ -863,7 +874,8 @@ namespace FightingGame.Runtime {
         /// </summary>
         private bool TryJumpCancel(InputFrame input) {
             // Must be in Active or Recovery of a move
-            if (_state != PlayerState.Active && _state != PlayerState.Recovery)
+            PlayerState phase = GetCurrentMovePhase();
+            if (phase != PlayerState.Active && phase != PlayerState.Recovery)
                 return false;
             if (_currentMove == null)
                 return false;
@@ -1198,11 +1210,9 @@ namespace FightingGame.Runtime {
                     _stunFramesRemaining--;
                     if (_stunFramesRemaining <= 0) {
                         _pushbackVelocityX = 0f;
-                        // Start grace window instead of immediately resetting.
-                        // If the defender gets hit again within COMBO_GRACE_WINDOW
-                        // frames, the combo continues seamlessly.
-                        if (_isBeingComboed)
-                            _comboGraceFrames = COMBO_GRACE_WINDOW;
+                        // Hitstun expired — the defender recovered, combo is over.
+                        // If the attacker's next hit lands, it starts a NEW combo.
+                        ResetComboState();
                         SetState(PlayerState.Idle);
                     }
                     break;
@@ -1411,29 +1421,6 @@ namespace FightingGame.Runtime {
         //  COMBO TRACKING
         // ──────────────────────────────────────
 
-        /// <summary>
-        /// Ticks the combo grace timer. When the defender leaves hitstun
-        /// and enters a neutral state, the grace timer counts down. If it
-        /// reaches zero without a new hit arriving, the combo truly ends.
-        /// Getting hit again (TakeHit sets _comboGraceFrames = 0) cancels
-        /// the grace period and continues the combo.
-        /// </summary>
-        private void TickComboGrace() {
-            if (_comboGraceFrames <= 0) return;
-
-            // Only count down in neutral states — if we're back in hitstun
-            // or launched, a new hit arrived and the grace period is moot.
-            if (_state == PlayerState.Hitstun || _state == PlayerState.Launched
-                || _state == PlayerState.Blockstun || _state == PlayerState.Knockdown
-                || _state == PlayerState.Crumple || _state == PlayerState.Thrown) {
-                _comboGraceFrames = 0; // hit arrived, combo continues naturally
-                return;
-            }
-
-            _comboGraceFrames--;
-            if (_comboGraceFrames <= 0)
-                ResetComboState();
-        }
 
         /// <summary>
         /// Called when combo ends (opponent returns to neutral).
@@ -1443,7 +1430,6 @@ namespace FightingGame.Runtime {
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
             _isBeingComboed = false;
-            _comboGraceFrames = 0;
         }
 
         // ──────────────────────────────────────
@@ -1554,7 +1540,8 @@ namespace FightingGame.Runtime {
             if (_currentMove == null) return false;
 
             // Gatlings fire from Active through Recovery (not Startup).
-            if (_state != PlayerState.Active && _state != PlayerState.Recovery)
+            PlayerState phase = GetCurrentMovePhase();
+            if (phase != PlayerState.Active && phase != PlayerState.Recovery)
                 return false;
 
             // Gatlings require contact (hit or block) — no whiff cancels.
@@ -1567,6 +1554,17 @@ namespace FightingGame.Runtime {
             // We check higher-priority targets first (specials > normals)
             // by sorting candidates, but in practice GGACR Gatlings are
             // normal→normal chains, so first-match is fine.
+            // Determine the player's current stance from held directions.
+            // During Active/Recovery the state is NOT Crouching/Standing,
+            // so we read the stick directly to know what the player intends.
+            MoveUsableState heldStance;
+            if (transform.position.y > _groundY + GROUND_SNAP_THRESHOLD || _moveStartedAirborne)
+                heldStance = MoveUsableState.Airborne;
+            else if (input.Direction.HasFlag(DirectionInput.Down))
+                heldStance = MoveUsableState.Crouching;
+            else
+                heldStance = MoveUsableState.Standing;
+
             foreach (var tc in _moveset.TargetCombos) {
                 if (tc.Sequence == null || tc.Sequence.Length < 2) continue;
 
@@ -1575,6 +1573,11 @@ namespace FightingGame.Runtime {
 
                     MoveData next = tc.Sequence[i + 1];
                     if (next == null) continue;
+
+                    // Stance filter: the target move's UsableFrom must include
+                    // the player's current held direction. This prevents 5D
+                    // from matching when the player is holding down (wants 2D).
+                    if ((next.UsableFrom & heldStance) == 0) continue;
 
                     // Check if the player's buffered input matches this target
                     if (_parser.TryMatchMove(next)) {
@@ -1674,7 +1677,6 @@ namespace FightingGame.Runtime {
             else {
                 // --- COMBO DAMAGE SCALING ---
                 _isBeingComboed = true;
-                _comboGraceFrames = 0; // cancel any pending grace reset — combo continues
                 _comboHitCount++;
 
                 // GGACR initial (forced) proration: if this move STARTS the combo
@@ -1776,7 +1778,6 @@ namespace FightingGame.Runtime {
                 // Projectile hit
                 bool wasCrouchingHit = (_state == PlayerState.Crouching);
                 _isBeingComboed = true;
-                _comboGraceFrames = 0; // cancel any pending grace reset
                 _comboHitCount++;
 
                 int rawDmg = Mathf.RoundToInt(proj.Damage * Character.DefenseModifier);

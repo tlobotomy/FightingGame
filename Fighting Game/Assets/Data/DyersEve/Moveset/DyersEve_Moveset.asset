@@ -28,15 +28,12 @@ MonoBehaviour:
   StandDust: {fileID: 11400000, guid: b472fb3474b2ce742938ee6b29f902b2, type: 2}
   CrouchDust: {fileID: 11400000, guid: 122eae9aabda7614ba1424684e1e2c3d, type: 2}
   JumpDust: {fileID: 11400000, guid: 307249a6b9358644c9771388f4fb9f18, type: 2}
-  CloseSlash: {fileID: 0}
-  CloseHeavySlash: {fileID: 0}
+  CloseSlash: {fileID: 11400000, guid: e6be70a99c997934cbf3f172fced1fc8, type: 2}
   CommandNormals: []
   Specials: []
   EXSpecials: []
   SuperArts: []
   ForwardThrow: {fileID: 11400000, guid: d6e29cd248e03314cacbcc3cdedf6494, type: 2}
   BackThrow: {fileID: 11400000, guid: c27bceecfadeda848889fb0019057059, type: 2}
-  Dash: {fileID: 0}
-  BackDash: {fileID: 0}
   Taunt: {fileID: 0}
   TargetCombos: []

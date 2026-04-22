@@ -790,8 +790,10 @@ namespace FightingGame.Runtime {
                 TriggerScreenShake(HeavyShakeIntensity, ShakeDurationFrames);
 
             // --- UPDATE UI COMBO COUNTER ---
+            // Show on the ATTACKER's side — they're the one doing the combo.
+            // The hit count is tracked on the defender (they receive the hits).
             if (!blocked && BattleUI != null)
-                BattleUI.SetComboCount(defenderIdx, def.ComboHitCount);
+                BattleUI.SetComboCount(attackerIdx, def.ComboHitCount);
         }
 
         // ──────────────────────────────────────
@@ -893,8 +895,9 @@ namespace FightingGame.Runtime {
                         _players[p].TakeProjectileHit(proj, blocked, projBlockType);
 
                         // Update combo counter UI for projectile hits
+                        // Show on the ATTACKER's side (1 - p, since p is the defender).
                         if (!blocked && BattleUI != null)
-                            BattleUI.SetComboCount(p, _players[p].ComboHitCount);
+                            BattleUI.SetComboCount(1 - p, _players[p].ComboHitCount);
 
                         proj.OnHitConfirmed();
                         break;
@@ -928,7 +931,7 @@ namespace FightingGame.Runtime {
 
             // Air blocking projectiles (Airborne or already air-blockstunned)
             if (state == PlayerController.PlayerState.Airborne
-                || (state == PlayerController.PlayerState.Blockstun)) {
+                || (state == PlayerController.PlayerState.Blockstun && defender.IsAirBlocking)) {
                 if (!holdBack) return false;
                 switch (proj.Height) {
                     case AttackHeight.Low:
