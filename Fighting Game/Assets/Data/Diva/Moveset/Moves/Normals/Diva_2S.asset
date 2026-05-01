@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
   m_Name: Diva_2S
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
-  MoveName: 
-  Notation: 
+  MoveName: Crouching Slash
+  Notation: 2S
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 2
   Motion:
     Type: 0
     Button: 0
@@ -26,10 +26,10 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 1
+    Startup: 8
+    Active: 2
+    Recovery: 17
+    AttackLevel: 3
     UseHitstopOverride: 0
     HitstopOverride: 0
     UseBlockstopOverride: 0
@@ -38,36 +38,62 @@ MonoBehaviour:
     BlockstunOverride: 0
     UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 28
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
     InitialProration: 0
-    MeterGainOnHit: 0
-    MeterGainOnWhiff: 0
-  Height: 0
+    MeterGainOnHit: 16
+    MeterGainOnWhiff: 5
+  Height: 2
   OnHitEffect: 0
-  HitPushbackVelocity: {x: 0, y: 0}
-  BlockPushbackVelocity: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.1, y: 0}
+  BlockPushbackVelocity: {x: 0.21, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
-    CancelWindowStart: 0
-    CancelWindowEnd: 0
+    MaxCancelLevel: 3
+    CancelWindowStart: 9
+    CancelWindowEnd: 14
     AllowKaraCancel: 0
     KaraCancelFrames: 0
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 1
+    Hitboxes:
+    - Offset: {x: 0.21, y: 0}
+      Size: {x: 0.42, y: 0.22}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
   HurtboxOverrides: []
   HurtboxOverrideFrameRanges: []
   Movement:
     HorizontalCurve:
       serializedVersion: 2
-      m_Curve: []
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.4638977
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
@@ -77,7 +103,7 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    HorizontalSpeed: 0
+    HorizontalSpeed: 0.08
     VerticalSpeed: 0
     Airborne: 0
   AnimationStateName: 2S

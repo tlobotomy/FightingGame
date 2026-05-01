@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
   m_Name: Diva_2H
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
-  MoveName: 
-  Notation: 
+  MoveName: Crouching Heavy Slash
+  Notation: 2H
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 2
   Motion:
     Type: 0
     Button: 0
@@ -26,10 +26,10 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 1
+    Startup: 10
+    Active: 2
+    Recovery: 11
+    AttackLevel: 5
     UseHitstopOverride: 0
     HitstopOverride: 0
     UseBlockstopOverride: 0
@@ -38,17 +38,17 @@ MonoBehaviour:
     BlockstunOverride: 0
     UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 35
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
     InitialProration: 0
-    MeterGainOnHit: 0
+    MeterGainOnHit: 22
     MeterGainOnWhiff: 0
   Height: 0
   OnHitEffect: 0
-  HitPushbackVelocity: {x: 0, y: 0}
-  BlockPushbackVelocity: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.02, y: 0}
+  BlockPushbackVelocity: {x: 0.16, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
@@ -60,9 +60,23 @@ MonoBehaviour:
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
-  HurtboxOverrides: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 1
+    Hitboxes:
+    - Offset: {x: 0.06, y: 0}
+      Size: {x: 0.62, y: 0.28}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
+  HurtboxOverrides:
+  - Label: Low Profiles
+    Hurtboxes: []
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 1
+    ThrowInvincible: 1
   HurtboxOverrideFrameRanges: []
   Movement:
     HorizontalCurve:

@@ -15,7 +15,7 @@ MonoBehaviour:
   MoveName: Crouching Punch
   Notation: 2P
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 2
   Motion:
     Type: 0
     Button: 0
@@ -26,38 +26,61 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 0
-    AttackerHitstopOverride: 0
-    DefenderHitstopOverride: 0
-    DefenderBlockstopOverride: 0
+    Startup: 8
+    Active: 4
+    Recovery: 8
+    AttackLevel: 1
+    UseHitstopOverride: 0
+    HitstopOverride: 0
+    UseBlockstopOverride: 0
+    BlockstopOverride: 0
     HitstunOverride: 0
     BlockstunOverride: 0
+    UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 12
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
-    MeterGainOnHit: 0
+    InitialProration: 0
+    MeterGainOnHit: 5
     MeterGainOnWhiff: 0
-  Height: 0
+  Height: 2
   OnHitEffect: 0
-  HitKnockback: {x: 0, y: 0}
-  BlockKnockback: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.09, y: 0}
+  BlockPushbackVelocity: {x: 0.14, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
-    CancelWindowStart: 0
-    CancelWindowEnd: 0
+    MaxCancelLevel: 1
+    CancelWindowStart: 9
+    CancelWindowEnd: 15
     AllowKaraCancel: 0
     KaraCancelFrames: 0
+    AllowJumpCancel: 0
+    AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
-  HurtboxOverrides: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 3
+    Hitboxes:
+    - Offset: {x: 0.12, y: 0}
+      Size: {x: 0.13, y: 0.1}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
+  HurtboxOverrides:
+  - Label: Crouching Punch
+    Hurtboxes:
+    - Offset: {x: 0, y: 0}
+      Size: {x: 0.3, y: 0.32}
+    - Offset: {x: 0.3, y: 0}
+      Size: {x: 0.18, y: 0.12}
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
   HurtboxOverrideFrameRanges: []
   Movement:
     HorizontalCurve:

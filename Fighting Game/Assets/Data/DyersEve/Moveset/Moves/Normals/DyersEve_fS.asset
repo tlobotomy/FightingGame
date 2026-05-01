@@ -26,9 +26,9 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 12
-    Active: 2
-    Recovery: 8
+    Startup: 11
+    Active: 7
+    Recovery: 18
     AttackLevel: 3
     UseHitstopOverride: 0
     HitstopOverride: 0
@@ -38,12 +38,12 @@ MonoBehaviour:
     BlockstunOverride: 0
     UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 30
-    ChipDamage: 0
-    StunDamage: 0
+    BaseDamage: 36
+    ChipDamage: 6
+    StunDamage: 6
     DamageScaling: 0
     InitialProration: 0
-    MeterGainOnHit: 0
+    MeterGainOnHit: 11
     MeterGainOnWhiff: 0
   Height: 0
   OnHitEffect: 0
@@ -52,9 +52,9 @@ MonoBehaviour:
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
-    CancelWindowStart: 0
-    CancelWindowEnd: 0
+    MaxCancelLevel: 1
+    CancelWindowStart: 12
+    CancelWindowEnd: 19
     AllowKaraCancel: 0
     KaraCancelFrames: 0
     AllowJumpCancel: 1
@@ -62,10 +62,10 @@ MonoBehaviour:
     AlwaysSuperCancellable: 0
   HitboxFrames:
   - StartFrame: 0
-    EndFrame: 1
+    EndFrame: 6
     Hitboxes:
-    - Offset: {x: 0.08, y: 0.12}
-      Size: {x: 0.39, y: 0.37}
+    - Offset: {x: 0.21, y: 0.41}
+      Size: {x: 0.22, y: 0.27}
     PushboxOverride:
       Offset: {x: 0, y: 0}
       Size: {x: 0, y: 0}
@@ -75,7 +75,25 @@ MonoBehaviour:
   Movement:
     HorizontalCurve:
       serializedVersion: 2
-      m_Curve: []
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0.013187967
+        outSlope: 0.013187967
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.3611179
+        value: 1.0047624
+        inSlope: 0.013187967
+        outSlope: 0.013187967
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
@@ -85,7 +103,7 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    HorizontalSpeed: 0
+    HorizontalSpeed: 0.18
     VerticalSpeed: 0
     Airborne: 0
   AnimationStateName: fS

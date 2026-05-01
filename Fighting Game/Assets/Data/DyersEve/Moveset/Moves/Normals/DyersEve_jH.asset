@@ -15,7 +15,7 @@ MonoBehaviour:
   MoveName: Jumping Heavy Slash
   Notation: j.H
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 4
   Motion:
     Type: 0
     Button: 0
@@ -26,10 +26,10 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 1
+    Startup: 10
+    Active: 6
+    Recovery: 16
+    AttackLevel: 4
     UseHitstopOverride: 0
     HitstopOverride: 0
     UseBlockstopOverride: 0
@@ -38,17 +38,17 @@ MonoBehaviour:
     BlockstunOverride: 0
     UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 40
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
     InitialProration: 0
-    MeterGainOnHit: 0
-    MeterGainOnWhiff: 0
-  Height: 0
+    MeterGainOnHit: 26
+    MeterGainOnWhiff: 10
+  Height: 3
   OnHitEffect: 0
-  HitPushbackVelocity: {x: 0, y: 0}
-  BlockPushbackVelocity: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.15, y: 0}
+  BlockPushbackVelocity: {x: 0.14, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
@@ -60,8 +60,16 @@ MonoBehaviour:
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 5
+    Hitboxes:
+    - Offset: {x: -0.2, y: 0.21}
+      Size: {x: 0.36, y: 0.16}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
   HurtboxOverrides: []
   HurtboxOverrideFrameRanges: []
   Movement:
@@ -79,7 +87,7 @@ MonoBehaviour:
       m_RotationOrder: 4
     HorizontalSpeed: 0
     VerticalSpeed: 0
-    Airborne: 0
+    Airborne: 1
   AnimationStateName: jH
   AnimationClip: {fileID: 0}
   HitEffectPrefab: {fileID: 0}

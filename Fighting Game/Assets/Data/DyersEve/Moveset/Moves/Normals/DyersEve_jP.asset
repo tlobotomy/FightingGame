@@ -15,7 +15,7 @@ MonoBehaviour:
   MoveName: Jumping Punch
   Notation: j.P
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 4
   Motion:
     Type: 0
     Button: 0
@@ -26,55 +26,104 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 0
-    AttackerHitstopOverride: 0
-    DefenderHitstopOverride: 0
-    DefenderBlockstopOverride: 0
+    Startup: 4
+    Active: 9
+    Recovery: 6
+    AttackLevel: 1
+    UseHitstopOverride: 0
+    HitstopOverride: 0
+    UseBlockstopOverride: 0
+    BlockstopOverride: 0
     HitstunOverride: 0
     BlockstunOverride: 0
+    UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 18
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
-    MeterGainOnHit: 0
+    InitialProration: 0
+    MeterGainOnHit: 7
     MeterGainOnWhiff: 0
-  Height: 0
+  Height: 3
   OnHitEffect: 0
-  HitKnockback: {x: 0, y: 0}
-  BlockKnockback: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0, y: 0}
+  BlockPushbackVelocity: {x: 0.14, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
-    CancelWindowStart: 0
-    CancelWindowEnd: 0
+    MaxCancelLevel: 1
+    CancelWindowStart: 5
+    CancelWindowEnd: 19
     AllowKaraCancel: 0
     KaraCancelFrames: 0
+    AllowJumpCancel: 0
+    AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 8
+    Hitboxes:
+    - Offset: {x: 0.24, y: 0.5}
+      Size: {x: 0.3, y: 0.26}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
   HurtboxOverrides: []
   HurtboxOverrideFrameRanges: []
   Movement:
     HorizontalCurve:
       serializedVersion: 2
-      m_Curve: []
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 1
+        inSlope: 0.016801292
+        outSlope: 0.016801292
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.094451904
+        value: 1.0015869
+        inSlope: 0.016801292
+        outSlope: 0.016801292
+        tangentMode: 34
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
     VerticalCurve:
       serializedVersion: 2
-      m_Curve: []
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2
+        outSlope: 2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.1083374
+        value: 0.057144165
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    HorizontalSpeed: 0
-    VerticalSpeed: 0
-    Airborne: 0
+    HorizontalSpeed: 0.02
+    VerticalSpeed: 0.06
+    Airborne: 1
   AnimationStateName: jP
   AnimationClip: {fileID: 0}
   HitEffectPrefab: {fileID: 0}

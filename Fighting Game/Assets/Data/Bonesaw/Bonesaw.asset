@@ -23,7 +23,7 @@ MonoBehaviour:
   StunRecoveryRate: 1
   StunDuration: 180
   WalkForwardSpeed: 0.08
-  WalkBackwardSpeed: 0.03
+  WalkBackwardSpeed: 0.05
   JumpForwardSpeed: 0.07
   JumpHeight: 0.2
   Gravity: 0.01
@@ -43,8 +43,8 @@ MonoBehaviour:
   BackDashDuration: 22
   BackDashDistance: 1.2
   BackDashInvincibleFrames: 5
-  DefenseModifier: 1
-  BlockPushbackModifier: 1
+  DefenseModifier: 0.843
+  BlockPushbackModifier: 1.098
   FDPushbackMultiplier: 1.5
   InstantBlockWindow: 8
   GuardCrushStaggerFrames: 40
@@ -58,7 +58,7 @@ MonoBehaviour:
     Label: Stand
     Hurtboxes:
     - Offset: {x: 0, y: 0}
-      Size: {x: 0.6, y: 0.85}
+      Size: {x: 0.24, y: 0.39}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
@@ -67,7 +67,7 @@ MonoBehaviour:
     Label: Crouch
     Hurtboxes:
     - Offset: {x: 0, y: 0}
-      Size: {x: 0.6, y: 0.45}
+      Size: {x: 0.28, y: 0.27}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
@@ -75,8 +75,8 @@ MonoBehaviour:
   AirborneHurtbox:
     Label: Airborne
     Hurtboxes:
-    - Offset: {x: 0, y: 0.6}
-      Size: {x: 0.6, y: 0.45}
+    - Offset: {x: 0, y: 0}
+      Size: {x: 0.33, y: 0.62}
     Invincible: 0
     LowInvincible: 0
     HighInvincible: 0
@@ -102,5 +102,5 @@ MonoBehaviour:
   HitVoiceClips: []
   AttackVoiceClips: []
   ColorPalettes: []
-  PillarboxArtScale: 1
+  PillarboxArtScale: 1.2
   PillarboxArtOffsetY: 0

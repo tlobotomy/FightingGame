@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
   m_Name: DyersEve_5K
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
-  MoveName: Kick
+  MoveName: Standing Kick
   Notation: 5K
   Type: 0
   UsableFrom: 1
@@ -26,10 +26,10 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 5
-    Active: 3
-    Recovery: 8
-    AttackLevel: 2
+    Startup: 6
+    Active: 9
+    Recovery: 9
+    AttackLevel: 3
     UseHitstopOverride: 0
     HitstopOverride: 0
     UseBlockstopOverride: 0
@@ -39,20 +39,20 @@ MonoBehaviour:
     UntechableTimeOverride: 0
   Damage:
     BaseDamage: 22
-    ChipDamage: 0
-    StunDamage: 0
+    ChipDamage: 3
+    StunDamage: 55
     DamageScaling: 0
     InitialProration: 0
-    MeterGainOnHit: 0
+    MeterGainOnHit: 68
     MeterGainOnWhiff: 0
-  Height: 0
+  Height: 2
   OnHitEffect: 0
   HitPushbackVelocity: {x: 0.08, y: 0}
-  BlockPushbackVelocity: {x: 0.1, y: 0}
+  BlockPushbackVelocity: {x: 0.08, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
+    MaxCancelLevel: 1
     CancelWindowStart: 0
     CancelWindowEnd: 0
     AllowKaraCancel: 0
@@ -62,10 +62,10 @@ MonoBehaviour:
     AlwaysSuperCancellable: 0
   HitboxFrames:
   - StartFrame: 0
-    EndFrame: 2
+    EndFrame: 8
     Hitboxes:
-    - Offset: {x: 0, y: 0.3}
-      Size: {x: 0.54, y: 0.32}
+    - Offset: {x: 0.08, y: 0}
+      Size: {x: 0.2, y: 0.18}
     PushboxOverride:
       Offset: {x: 0, y: 0}
       Size: {x: 0, y: 0}

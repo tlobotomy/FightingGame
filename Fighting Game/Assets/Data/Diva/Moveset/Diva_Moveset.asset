@@ -29,7 +29,6 @@ MonoBehaviour:
   CrouchDust: {fileID: 11400000, guid: 54cca1e39021fca4199a304188e864ea, type: 2}
   JumpDust: {fileID: 11400000, guid: 0bc576e18351bf641908c3688775ea7d, type: 2}
   CloseSlash: {fileID: 11400000, guid: 4074045c6a37aa64cbeeefac303c00d9, type: 2}
-  CloseHeavySlash: {fileID: 11400000, guid: 308af06744a07364d9aa807c45f187a0, type: 2}
   CommandNormals: []
   Specials: []
   EXSpecials: []
@@ -37,4 +36,11 @@ MonoBehaviour:
   ForwardThrow: {fileID: 11400000, guid: f9acf23fc4a8f4d4d9355dd32df5d0b4, type: 2}
   BackThrow: {fileID: 11400000, guid: 4569f45bd01a82b47b8679cfd1b4f75c, type: 2}
   Taunt: {fileID: 11400000, guid: 7b6dd89521bcc8f47bd6e3986d40ee30, type: 2}
-  TargetCombos: []
+  TargetCombos:
+  - Name: Universal
+    Sequence:
+    - {fileID: 11400000, guid: 9acd3c27ca8c530418053f38cfa63ad8, type: 2}
+    - {fileID: 11400000, guid: dc29b38b3aee04947823ce7d0d5595ee, type: 2}
+    - {fileID: 11400000, guid: 4074045c6a37aa64cbeeefac303c00d9, type: 2}
+    - {fileID: 11400000, guid: 80cd2d495136937469e8f7ed8011a764, type: 2}
+    - {fileID: 11400000, guid: 8e908e9e45b0836479814e2ca9b73952, type: 2}

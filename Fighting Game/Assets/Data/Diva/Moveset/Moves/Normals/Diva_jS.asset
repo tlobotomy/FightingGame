@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ec87e6d0dff699449fd3000b3706185, type: 3}
   m_Name: Diva_jS
   m_EditorClassIdentifier: Assembly-CSharp::FightingGame.ScriptableObjects.MoveData
-  MoveName: 
-  Notation: 
+  MoveName: Jumping Slash
+  Notation: j.S
   Type: 0
-  UsableFrom: 1
+  UsableFrom: 4
   Motion:
     Type: 0
     Button: 0
@@ -26,38 +26,59 @@ MonoBehaviour:
   RequiredDirection: 0
   InputPriority: 0
   Frames:
-    Startup: 0
-    Active: 0
-    Recovery: 0
-    AttackLevel: 0
-    AttackerHitstopOverride: 0
-    DefenderHitstopOverride: 0
-    DefenderBlockstopOverride: 0
+    Startup: 7
+    Active: 6
+    Recovery: 23
+    AttackLevel: 3
+    UseHitstopOverride: 0
+    HitstopOverride: 0
+    UseBlockstopOverride: 0
+    BlockstopOverride: 0
     HitstunOverride: 0
     BlockstunOverride: 0
+    UntechableTimeOverride: 0
   Damage:
-    BaseDamage: 0
+    BaseDamage: 23
     ChipDamage: 0
     StunDamage: 0
     DamageScaling: 0
-    MeterGainOnHit: 0
+    InitialProration: 0
+    MeterGainOnHit: 41
     MeterGainOnWhiff: 0
-  Height: 0
+  Height: 3
   OnHitEffect: 0
-  HitKnockback: {x: 0, y: 0}
-  BlockKnockback: {x: 0, y: 0}
+  HitPushbackVelocity: {x: 0.24, y: 0}
+  BlockPushbackVelocity: {x: 0, y: 0}
   HitCount: 1
   MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 0
-    CancelWindowStart: 0
-    CancelWindowEnd: 0
+    MaxCancelLevel: 1
+    CancelWindowStart: 8
+    CancelWindowEnd: 13
     AllowKaraCancel: 0
     KaraCancelFrames: 0
+    AllowJumpCancel: 1
+    AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
-  TargetComboRoutes: []
-  HitboxFrames: []
-  HurtboxOverrides: []
+  HitboxFrames:
+  - StartFrame: 0
+    EndFrame: 5
+    Hitboxes:
+    - Offset: {x: 0.24, y: -0.2}
+      Size: {x: 0.18, y: 0.2}
+    PushboxOverride:
+      Offset: {x: 0, y: 0}
+      Size: {x: 0, y: 0}
+    OverridePushbox: 0
+  HurtboxOverrides:
+  - Label: j.S
+    Hurtboxes:
+    - Offset: {x: 0.09, y: -0.28}
+      Size: {x: 1.24, y: 0.6}
+    Invincible: 0
+    LowInvincible: 0
+    HighInvincible: 0
+    ThrowInvincible: 0
   HurtboxOverrideFrameRanges: []
   Movement:
     HorizontalCurve:
@@ -74,7 +95,7 @@ MonoBehaviour:
       m_RotationOrder: 4
     HorizontalSpeed: 0
     VerticalSpeed: 0
-    Airborne: 0
+    Airborne: 1
   AnimationStateName: jS
   AnimationClip: {fileID: 0}
   HitEffectPrefab: {fileID: 0}

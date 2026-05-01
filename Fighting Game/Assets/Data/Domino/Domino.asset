@@ -18,8 +18,7 @@ MonoBehaviour:
   FullBodyArt: {fileID: 0}
   CharacterPrefab: {fileID: 250968438874482646, guid: 2652a0854aeaaf440afeab3840531e3a, type: 3}
   Moveset: {fileID: 0}
-  SelectedSuperArt: 0
-  MaxHealth: 1200
+  MaxHealth: 460
   MaxStun: 72
   StunRecoveryRate: 1
   StunDuration: 180
@@ -30,6 +29,15 @@ MonoBehaviour:
   Gravity: 0.008
   PreJumpFrames: 4
   JumpLandingFrames: 2
+  AirJumps: 1
+  AirJumpHeight: 0.1
+  AirJumpForwardSpeed: 0.04
+  AirDashes: 1
+  AirDashSpeed: 0.08
+  AirDashDuration: 16
+  AirBackDashSpeed: 0.06
+  AirBackDashDuration: 14
+  AirDashMinHeight: 4
   DashDuration: 18
   DashDistance: 1.5
   BackDashDuration: 22
@@ -37,6 +45,15 @@ MonoBehaviour:
   BackDashInvincibleFrames: 5
   DefenseModifier: 1
   BlockPushbackModifier: 1
+  FDPushbackMultiplier: 1.5
+  InstantBlockWindow: 8
+  GuardCrushStaggerFrames: 40
+  ThrowStartupFrames: 3
+  ThrowTechWindow: 10
+  WakeupReversalWindow: 4
+  BackRollDistance: 1.5
+  BackRollFrames: 20
+  BackRollInvincibleFrames: 14
   StandingHurtbox:
     Label: 
     Hurtboxes: []
@@ -65,6 +82,19 @@ MonoBehaviour:
   ParryWhiffRecovery: 20
   ParryMeterGain: 10
   ParryHitStop: 12
+  MaxMeter: 10000
+  TensionGainForwardWalk: 8
+  TensionGainForwardDash: 16
+  TensionGainOnHit: 72
+  TensionGainOnBlock: 36
+  TensionGainOnWhiff: 18
+  TensionGainPerAttackFrame: 2
+  TensionPulseThreshold: 120
+  TensionDrainRate: 4
+  NegativePenaltyDuration: 600
+  FaultlessDefenseCostPerFrame: 50
   HitVoiceClips: []
   AttackVoiceClips: []
   ColorPalettes: []
+  PillarboxArtScale: 1
+  PillarboxArtOffsetY: 0

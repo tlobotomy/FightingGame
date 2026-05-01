@@ -35,5 +35,5 @@ MonoBehaviour:
   SuperArts: []
   ForwardThrow: {fileID: 11400000, guid: d6e29cd248e03314cacbcc3cdedf6494, type: 2}
   BackThrow: {fileID: 11400000, guid: c27bceecfadeda848889fb0019057059, type: 2}
-  Taunt: {fileID: 0}
+  Taunt: {fileID: 11400000, guid: 541fda3263b937d45b285514853b2858, type: 2}
   TargetCombos: []
