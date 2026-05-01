@@ -9,10 +9,17 @@ namespace FightingGame.Runtime {
     /// based on the selections made at the character select screen.
     ///
     /// Setup:
-    ///   - Attach to the PillarboxCanvas GameObject
-    ///   - Assign the Image and optional Text references in the inspector
-    ///   - Art is pulled from CharacterData.FullBodyArt
-    ///   - Runs once on Start, reading from MatchSettings
+    ///   1. Create a Canvas named "PillarboxCanvas".
+    ///   2. Set Canvas Render Mode to "Screen Space - Overlay" (CRITICAL —
+    ///      if you use "Screen Space - Camera", the canvas will be clipped
+    ///      to the gameplay camera's viewport rect, which is exactly the area
+    ///      the pillarbox is NOT supposed to cover).
+    ///   3. Set Canvas Sort Order to -1 (renders behind the Battle UI canvas).
+    ///   4. Add this script to the PillarboxCanvas.
+    ///   5. Create two child panels (left and right) anchored to the edges.
+    ///   6. Wire Image and Text references in the inspector.
+    ///   7. PillarboxSetup (on the Main Camera) handles the viewport rect
+    ///      and creates the background camera automatically.
     /// </summary>
     public class PillarboxDisplay : MonoBehaviour {
         [Header("P1 (Left Pillarbox)")]

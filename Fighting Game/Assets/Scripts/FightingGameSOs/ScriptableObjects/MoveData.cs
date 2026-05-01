@@ -90,6 +90,16 @@ namespace FightingGame.ScriptableObjects {
         [Header("Cancel Rules")]
         public CancelData Cancel;
 
+        [Header("Gatling Routes")]
+        [Tooltip("Moves this attack can Gatling-cancel into on hit/block.\n" +
+                 "Drag any number of MoveData assets here — order determines priority " +
+                 "(first match wins). Leave empty if this move has no Gatling routes.\n\n" +
+                 "Examples:\n" +
+                 "  5P → [5K, 2K, 6P, cS]\n" +
+                 "  cS → [5HS, 2D, 2HS]\n" +
+                 "  2K → [2D]")]
+        public MoveData[] GatlingRoutes;
+
         // ──────────────────────────────────────
         //  HITBOXES
         // ──────────────────────────────────────

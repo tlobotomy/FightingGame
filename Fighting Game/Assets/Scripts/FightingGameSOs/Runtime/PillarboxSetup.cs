@@ -47,8 +47,21 @@ namespace FightingGame.Runtime {
             if (GameplayCamera == null)
                 GameplayCamera = GetComponent<Camera>();
 
+            if (GameplayCamera == null) {
+                Debug.LogError("[PillarboxSetup] No GameplayCamera assigned and no Camera on this GameObject! " +
+                    "Either attach this script to the Main Camera, or drag the Main Camera into the GameplayCamera slot.");
+                return;
+            }
+
+            float screenAspect = (float)Screen.width / Screen.height;
+            Debug.Log($"[PillarboxSetup] Screen={Screen.width}x{Screen.height}, aspect={screenAspect:F3}, " +
+                $"target={TargetAspect:F3}, needsPillarbox={screenAspect > TargetAspect}");
+
             SetupViewport();
             SetupBackgroundCamera();
+
+            Debug.Log($"[PillarboxSetup] GameplayCamera rect={GameplayCamera.rect}, " +
+                $"bgCamera depth={_bgCamera.depth}, bgColor={BackgroundColor}");
         }
 
         private void SetupViewport() {

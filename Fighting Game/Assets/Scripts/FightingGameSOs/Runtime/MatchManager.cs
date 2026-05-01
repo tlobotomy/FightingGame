@@ -104,6 +104,8 @@ namespace FightingGame.Runtime {
 
         private MoveData[] _lastMoveHit = new MoveData[2];
         private int _roundWinner = -1;
+        private string _matchResultText;
+        private bool _postMatchShown;
 
         // Projectile tracking
         private List<Projectile> _activeProjectiles = new List<Projectile>();
@@ -387,6 +389,7 @@ namespace FightingGame.Runtime {
                     TickRoundEnd();
                     break;
                 case MatchPhase.MatchEnd:
+                    TickMatchEnd();
                     break;
             }
 
@@ -498,21 +501,18 @@ namespace FightingGame.Runtime {
                 }
 
                 if (_roundWins[0] >= RoundsToWin || _roundWins[1] >= RoundsToWin) {
-                    SetPhase(MatchPhase.MatchEnd);
-                    string winner;
                     if (_roundWins[0] >= RoundsToWin && _roundWins[1] >= RoundsToWin)
-                        winner = "DRAW GAME";
+                        _matchResultText = "DRAW GAME";
                     else if (_roundWins[0] >= RoundsToWin)
-                        winner = "P1 WINS";
+                        _matchResultText = "P1 WINS";
                     else
-                        winner = "P2 WINS";
+                        _matchResultText = "P2 WINS";
 
                     if (BattleUI != null)
-                        BattleUI.ShowBanner(winner, 3f);
+                        BattleUI.ShowBanner(_matchResultText, 3f);
 
-                    // Trigger post-match menu (appears after a short delay)
-                    if (PostMatchPanel != null)
-                        PostMatchPanel.Show(winner);
+                    Debug.Log($"[MatchManager] Match over! {_matchResultText} — entering MatchEnd phase");
+                    SetPhase(MatchPhase.MatchEnd);
                 }
                 else {
                     SetPhase(MatchPhase.RoundEnd);
@@ -524,6 +524,21 @@ namespace FightingGame.Runtime {
             if (_phaseTimer >= BetweenRoundFrames) {
                 _currentRound++;
                 StartRound();
+            }
+        }
+
+        /// <summary>
+        /// After the match ends, wait 180 frames (~3 seconds at 60fps)
+        /// for the winner banner to display, then show the post-match panel.
+        /// </summary>
+        private void TickMatchEnd() {
+            if (!_postMatchShown && _phaseTimer >= 180) {
+                _postMatchShown = true;
+                Debug.Log($"[MatchManager] TickMatchEnd firing. PostMatchPanel={(PostMatchPanel != null ? "assigned" : "NULL")} result={_matchResultText}");
+                if (PostMatchPanel != null)
+                    PostMatchPanel.Show(_matchResultText);
+                else
+                    Debug.LogWarning("[MatchManager] PostMatchPanel is NULL — drag the PostMatchUI into the slot on MatchManager.");
             }
         }
 

@@ -60,6 +60,11 @@ MonoBehaviour:
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 0
     AlwaysSuperCancellable: 0
+  GatlingRoutes:
+  - {fileID: 11400000, guid: 94c79bff0de750747b4c0693b0870bff, type: 2}
+  - {fileID: 11400000, guid: e6be70a99c997934cbf3f172fced1fc8, type: 2}
+  - {fileID: 11400000, guid: c7201e4665fcbb2439521dd948fdd299, type: 2}
+  - {fileID: 11400000, guid: b472fb3474b2ce742938ee6b29f902b2, type: 2}
   HitboxFrames:
   - StartFrame: 0
     EndFrame: 4

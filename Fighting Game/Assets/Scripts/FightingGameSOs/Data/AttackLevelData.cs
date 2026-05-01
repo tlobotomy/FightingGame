@@ -109,13 +109,13 @@ namespace FightingGame.Data {
             // ── Level 1 ──
             new LevelProperties
             {
-                Hitstop                 = 11,
+                Hitstop                 = 10,
                 CounterHitHitstopBonus  = 0,
-                Blockstop               = 11,
+                Blockstop               = 9,
 
-                StandingHitstun         = 10,
-                CrouchingHitstunBonus   = 0,
-                UntechableTime          = 10,
+                StandingHitstun         = 13,
+                CrouchingHitstunBonus   = +1,
+                UntechableTime          = 12,
 
                 Blockstun               = 9,
                 FDBlockstunMod          = +2,
@@ -132,13 +132,13 @@ namespace FightingGame.Data {
             // ── Level 2 ──
             new LevelProperties
             {
-                Hitstop                 = 12,
+                Hitstop                 = 11,
                 CounterHitHitstopBonus  = +2,
-                Blockstop               = 12,
+                Blockstop               = 10,
 
-                StandingHitstun         = 12,
+                StandingHitstun         = 16,
                 CrouchingHitstunBonus   = +1,
-                UntechableTime          = 12,
+                UntechableTime          = 14,
 
                 Blockstun               = 11,
                 FDBlockstunMod          = +2,
@@ -155,13 +155,13 @@ namespace FightingGame.Data {
             // ── Level 3 ──
             new LevelProperties
             {
-                Hitstop                 = 13,
+                Hitstop                 = 12,
                 CounterHitHitstopBonus  = +4,
-                Blockstop               = 13,
+                Blockstop               = 11,
 
-                StandingHitstun         = 14,
+                StandingHitstun         = 18,
                 CrouchingHitstunBonus   = +1,
-                UntechableTime          = 14,
+                UntechableTime          = 16,
 
                 Blockstun               = 13,
                 FDBlockstunMod          = +2,
@@ -178,13 +178,13 @@ namespace FightingGame.Data {
             // ── Level 4 ──
             new LevelProperties
             {
-                Hitstop                 = 14,
+                Hitstop                 = 13,
                 CounterHitHitstopBonus  = +8,
-                Blockstop               = 14,
+                Blockstop               = 12,
 
-                StandingHitstun         = 17,
+                StandingHitstun         = 20,
                 CrouchingHitstunBonus   = +1,
-                UntechableTime          = 16,
+                UntechableTime          = 18,
 
                 Blockstun               = 16,
                 FDBlockstunMod          = +2,
@@ -201,13 +201,13 @@ namespace FightingGame.Data {
             // ── Level 5 ──
             new LevelProperties
             {
-                Hitstop                 = 15,
+                Hitstop                 = 14,
                 CounterHitHitstopBonus  = +12,
-                Blockstop               = 15,
+                Blockstop               = 13,
 
-                StandingHitstun         = 19,
+                StandingHitstun         = 23,
                 CrouchingHitstunBonus   = +1,
-                UntechableTime          = 18,
+                UntechableTime          = 20,
 
                 Blockstun               = 18,
                 FDBlockstunMod          = +2,

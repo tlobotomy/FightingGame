@@ -44,34 +44,36 @@ namespace FightingGame.Runtime {
         public MatchManager Match;
 
         [Header("Zoom")]
-        [Tooltip("Minimum orthographic size (players very close together).")]
-        public float MinOrthoSize = 3.5f;
+        [Tooltip("Minimum orthographic size (players very close together).\n" +
+                 "GGACR-style: ~5 keeps full bodies visible at close range.")]
+        public float MinOrthoSize = 5f;
 
-        [Tooltip("Maximum orthographic size (players at max distance apart).")]
-        public float MaxOrthoSize = 5.4f;
+        [Tooltip("Maximum orthographic size (players at max distance apart).\n" +
+                 "GGACR-style: ~7 shows the full stage width at max distance.")]
+        public float MaxOrthoSize = 7f;
 
         [Tooltip("Player distance at which the camera reaches MinOrthoSize.")]
-        public float MinZoomDistance = 1.5f;
+        public float MinZoomDistance = 2f;
 
         [Tooltip("Player distance at which the camera reaches MaxOrthoSize.")]
-        public float MaxZoomDistance = 8f;
+        public float MaxZoomDistance = 10f;
 
         [Header("Vertical Tracking")]
         [Tooltip("Base Y position when both players are grounded.\n" +
-                 "Should be roughly GroundY + MinOrthoSize so characters appear " +
-                 "in the lower third, not clipped at the bottom edge.")]
-        public float BaseY = 1f;
+                 "Raise this to shift the camera upward so characters sit in the " +
+                 "lower third instead of the bottom edge. Try GroundY + 2~3.")]
+        public float BaseY = 2.5f;
 
         [Tooltip("How much the camera rises to follow airborne players (0 = no follow, 1 = full follow).")]
         [Range(0f, 1f)]
         public float VerticalFollowStrength = 0.5f;
 
         [Tooltip("Maximum upward offset from BaseY.")]
-        public float MaxVerticalOffset = 2f;
+        public float MaxVerticalOffset = 3f;
 
         [Tooltip("How much ground to show below GroundY (prevents characters " +
                  "from being pinned to the very bottom of the screen).")]
-        public float GroundPadding = 0.5f;
+        public float GroundPadding = 1f;
 
         [Header("Smoothing")]
         [Tooltip("Horizontal follow smoothing (lower = snappier).")]

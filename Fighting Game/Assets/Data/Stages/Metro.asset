@@ -16,12 +16,11 @@ MonoBehaviour:
   Description: honk honnk
   PreviewImage: {fileID: 21300000, guid: c2b1661021e41b449a1bf0990241b404, type: 3}
   BackgroundPrefab: {fileID: 1814292073256504259, guid: 3f73262ad191e8a4b9c9ff4a39fe8101, type: 3}
-  LeftBound: -6
-  RightBound: 6
-  GroundY: 0
+  LeftBound: -20
+  RightBound: 20
+  GroundY: -10
   BGM: {fileID: 0}
   BGMVolume: 1
   BGMLoop: 1
   DamageMultiplier: 1
   RoundTimeOverride: 0
-  GravityScale: 1

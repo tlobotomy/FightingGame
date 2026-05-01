@@ -47,14 +47,14 @@ MonoBehaviour:
     MeterGainOnWhiff: 23
   Height: 0
   OnHitEffect: 4
-  HitPushbackVelocity: {x: 0.1, y: 0.1}
+  HitPushbackVelocity: {x: 0.1, y: 0.22}
   BlockPushbackVelocity: {x: 0.47, y: 0}
-  HitCount: 2
-  MultiHitInterval: 2
+  HitCount: 1
+  MultiHitInterval: 0
   Cancel:
-    MaxCancelLevel: 3
-    CancelWindowStart: 13
-    CancelWindowEnd: 25
+    MaxCancelLevel: 0
+    CancelWindowStart: 0
+    CancelWindowEnd: 0
     AllowKaraCancel: 0
     KaraCancelFrames: 0
     AllowJumpCancel: 0

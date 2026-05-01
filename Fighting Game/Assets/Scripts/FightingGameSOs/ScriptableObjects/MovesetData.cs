@@ -109,23 +109,6 @@ namespace FightingGame.ScriptableObjects {
         public MoveData Taunt;
 
         // ──────────────────────────────────────
-        //  GATLING / TARGET COMBOS
-        // ──────────────────────────────────────
-
-        [Header("Gatling Table")]
-        [Tooltip("GGACR-style Gatling routes. Each entry is a named sequence of moves " +
-                 "that can chain into each other during Active/Recovery frames, regardless " +
-                 "of whether the previous move connected.\n\n" +
-                 "Example entries:\n" +
-                 "  'P Chain'  → [5P, 5K, cS, 5HS]\n" +
-                 "  'Dust Chain' → [cS, 5D]\n" +
-                 "  'Low Chain' → [2P, 2K, 2S]\n\n" +
-                 "A move can appear in multiple sequences (e.g. cS routes into both 5HS " +
-                 "and 2HS). The first matching sequence wins.\n\n" +
-                 "Cancel timing is controlled by the individual move's CancelData.")]
-        public TargetCombo[] TargetCombos;
-
-        // ──────────────────────────────────────
         //  LOOKUP HELPERS
         // ──────────────────────────────────────
 
@@ -180,6 +163,45 @@ namespace FightingGame.ScriptableObjects {
         }
 
         /// <summary>
+        /// Reverse-lookup: given a MoveData asset, returns which ButtonInput
+        /// triggers it by checking all normal slots. Returns ButtonInput.None
+        /// if the move isn't found in any slot (specials, supers, etc.).
+        ///
+        /// Used by TryGatlingCancel — normals have Motion.Button = None
+        /// because they resolve through GetNormal(), so the parser can't
+        /// match them. This tells the Gatling system which button to check.
+        /// </summary>
+        public ButtonInput GetButtonForMove(MoveData move) {
+            if (move == null) return ButtonInput.None;
+
+            // Standing normals
+            if (move == StandPunch) return ButtonInput.Punch;
+            if (move == StandKick) return ButtonInput.Kick;
+            if (move == StandSlash) return ButtonInput.Slash;
+            if (move == StandHeavySlash) return ButtonInput.HeavySlash;
+            if (move == StandDust) return ButtonInput.Dust;
+
+            // Crouching normals
+            if (move == CrouchPunch) return ButtonInput.Punch;
+            if (move == CrouchKick) return ButtonInput.Kick;
+            if (move == CrouchSlash) return ButtonInput.Slash;
+            if (move == CrouchHeavySlash) return ButtonInput.HeavySlash;
+            if (move == CrouchDust) return ButtonInput.Dust;
+
+            // Jumping normals
+            if (move == JumpPunch) return ButtonInput.Punch;
+            if (move == JumpKick) return ButtonInput.Kick;
+            if (move == JumpSlash) return ButtonInput.Slash;
+            if (move == JumpHeavySlash) return ButtonInput.HeavySlash;
+            if (move == JumpDust) return ButtonInput.Dust;
+
+            // Close normals
+            if (move == CloseSlash) return ButtonInput.Slash;
+
+            return ButtonInput.None;
+        }
+
+        /// <summary>
         /// Returns all special + EX moves merged and sorted by
         /// InputPriority descending. Cache this at runtime.
         /// </summary>
@@ -212,19 +234,4 @@ namespace FightingGame.ScriptableObjects {
         [Min(1)] public int CostPerUse;
     }
 
-    /// <summary>
-    /// A single Gatling route — an ordered sequence of moves where each
-    /// entry can cancel into the next during Active/Recovery frames.
-    /// Cancels fire regardless of whether the move hit (GGACR rule).
-    /// Cancel timing is still controlled per-move via CancelData.
-    /// </summary>
-    [System.Serializable]
-    public struct TargetCombo {
-        [Tooltip("Descriptive name shown in the inspector (e.g. 'P Chain', 'Low Route').")]
-        public string Name;
-
-        [Tooltip("Ordered chain: Sequence[0] can Gatling into Sequence[1], " +
-                 "Sequence[1] into Sequence[2], etc. Must have at least 2 entries.")]
-        public MoveData[] Sequence;
-    }
 }

@@ -1426,6 +1426,8 @@ namespace FightingGame.Runtime {
         /// Called when combo ends (opponent returns to neutral).
         /// </summary>
         private void ResetComboState() {
+            if (_comboHitCount > 0)
+                Debug.Log($"[Combo] {gameObject.name} combo RESET from {_comboHitCount} hits | state={_state}");
             _comboHitCount = 0;
             _comboDamageScaling = 1f;
             _jugglePointsUsed = 0;
@@ -1509,35 +1511,23 @@ namespace FightingGame.Runtime {
         // ──────────────────────────────────────
 
         /// <summary>
-        /// Checks the character's Gatling table and fires the next move in
-        /// the chain if the player's buffered input matches.
+        /// GGACR-style Gatling cancel. Each MoveData has its own GatlingRoutes
+        /// array listing exactly which moves it can chain into. The designer
+        /// has full control — drag any number of MoveData assets into the
+        /// array on each move's ScriptableObject.
         ///
-        /// GGACR Gatling rules:
-        ///   - Gatling cancels fire from Active OR Recovery frames.
-        ///   - They do NOT require the move to have hit (unlike special/jump cancels).
-        ///   - The current move must be within its cancel window.
-        ///   - Each Gatling entry is an ordered sequence; the move currently
-        ///     executing must match the entry at position [i], and the input
-        ///     must match the move at position [i+1].
-        ///   - If the current move appears multiple times across different
-        ///     sequences, all sequences are checked (e.g. 5S can Gatling into
-        ///     both 5HS and 2HS if both sequences are defined).
-        /// </summary>
-        /// <summary>
-        /// GGACR-style Gatling cancel. Fires from the first Active frame through
-        /// the end of Recovery — does NOT require the move's CancelData window
-        /// (that window governs special/super cancels separately).
-        ///
-        /// Gatlings fire on whiff too (GGACR rule). Connection is NOT required.
-        ///
-        /// The Gatling table in MovesetData defines which moves chain into which.
-        /// A move can appear as a source in multiple routes (e.g. cS → 5HS and
-        /// cS → 2D are both valid if both routes exist). All matching routes are
-        /// checked, and the first input match wins.
+        /// Rules:
+        ///   - Fires from Active through Recovery (not Startup).
+        ///   - Requires contact (hit or block) — no whiff Gatlings.
+        ///   - Stance filter: the target move's UsableFrom must match
+        ///     the player's currently held direction (prevents 5D when
+        ///     holding down for 2D).
+        ///   - First input match wins (array order = priority).
         /// </summary>
         private bool TryGatlingCancel(InputFrame input) {
-            if (_moveset == null || _moveset.TargetCombos == null) return false;
             if (_currentMove == null) return false;
+            if (_currentMove.GatlingRoutes == null || _currentMove.GatlingRoutes.Length == 0)
+                return false;
 
             // Gatlings fire from Active through Recovery (not Startup).
             PlayerState phase = GetCurrentMovePhase();
@@ -1548,12 +1538,9 @@ namespace FightingGame.Runtime {
             if (!_moveHasConnected)
                 return false;
 
-            // Collect all valid "next" moves from every Gatling route where
-            // _currentMove is the source. This allows many-to-many routing
-            // without the designer needing to duplicate sequences.
-            // We check higher-priority targets first (specials > normals)
-            // by sorting candidates, but in practice GGACR Gatlings are
-            // normal→normal chains, so first-match is fine.
+            Debug.Log($"[Gatling] {gameObject.name} checking Gatling from {_currentMove.name} " +
+                $"(phase={phase}, frame={_moveFrame}, routes={_currentMove.GatlingRoutes.Length})");
+
             // Determine the player's current stance from held directions.
             // During Active/Recovery the state is NOT Crouching/Standing,
             // so we read the stick directly to know what the player intends.
@@ -1565,25 +1552,31 @@ namespace FightingGame.Runtime {
             else
                 heldStance = MoveUsableState.Standing;
 
-            foreach (var tc in _moveset.TargetCombos) {
-                if (tc.Sequence == null || tc.Sequence.Length < 2) continue;
+            foreach (var next in _currentMove.GatlingRoutes) {
+                if (next == null) continue;
 
-                for (int i = 0; i < tc.Sequence.Length - 1; i++) {
-                    if (tc.Sequence[i] != _currentMove) continue;
+                // Stance filter: prevents 5D from matching when holding down.
+                if ((next.UsableFrom & heldStance) == 0) continue;
 
-                    MoveData next = tc.Sequence[i + 1];
-                    if (next == null) continue;
+                bool matched = false;
 
-                    // Stance filter: the target move's UsableFrom must include
-                    // the player's current held direction. This prevents 5D
-                    // from matching when the player is holding down (wants 2D).
-                    if ((next.UsableFrom & heldStance) == 0) continue;
+                if (next.Motion.Type == MotionType.None) {
+                    // Normals don't have Motion.Button set — they resolve
+                    // through MovesetData.GetNormal() which bypasses the parser.
+                    // Look up which button triggers this move from the moveset slots.
+                    ButtonInput btn = _moveset.GetButtonForMove(next);
+                    if (btn != ButtonInput.None)
+                        matched = _buffer.ButtonPressedInWindow(btn, _parser.ButtonPressWindow);
+                }
+                else {
+                    // Specials, supers, command normals — use the full parser
+                    matched = _parser.TryMatchMove(next);
+                }
 
-                    // Check if the player's buffered input matches this target
-                    if (_parser.TryMatchMove(next)) {
-                        ExecuteMove(next);
-                        return true;
-                    }
+                if (matched) {
+                    Debug.Log($"[Gatling] SUCCESS: {_currentMove.name} → {next.name}");
+                    ExecuteMove(next);
+                    return true;
                 }
             }
 
@@ -1678,6 +1671,9 @@ namespace FightingGame.Runtime {
                 // --- COMBO DAMAGE SCALING ---
                 _isBeingComboed = true;
                 _comboHitCount++;
+                Debug.Log($"[Combo] {gameObject.name} hit by {move.name} | " +
+                    $"comboCount={_comboHitCount} state={_state} " +
+                    $"stunRemaining={_stunFramesRemaining}");
 
                 // GGACR initial (forced) proration: if this move STARTS the combo
                 // and has InitialProration < 1.0, set the combo scaling floor.
