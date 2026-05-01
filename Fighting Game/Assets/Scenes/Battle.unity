@@ -1399,11 +1399,11 @@ MonoBehaviour:
   MinOrthoSize: 5
   MaxOrthoSize: 7
   MinZoomDistance: 3
-  MaxZoomDistance: 8
+  MaxZoomDistance: 7
   BaseY: -2
   VerticalFollowStrength: 0.5
   MaxVerticalOffset: 2
-  GroundPadding: 0.8
+  GroundPadding: 1.3
   HorizontalDamping: 0.1
   VerticalDamping: 0.15
   ZoomDamping: 0.12

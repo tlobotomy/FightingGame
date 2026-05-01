@@ -60,6 +60,7 @@ MonoBehaviour:
     AllowJumpCancel: 0
     AllowJumpCancelOnBlock: 1
     AlwaysSuperCancellable: 1
+  GatlingRoutes: []
   HitboxFrames:
   - StartFrame: 0
     EndFrame: 4
@@ -107,7 +108,7 @@ MonoBehaviour:
     VerticalSpeed: 0.02
     Airborne: 1
   AnimationStateName: cS
-  AnimationClip: {fileID: 0}
+  AnimationClip: {fileID: 7400000, guid: db1dbc512264e7d469bc356add3bc7b9, type: 2}
   HitEffectPrefab: {fileID: 0}
   WhiffEffectPrefab: {fileID: 0}
   SwingSound: {fileID: 0}

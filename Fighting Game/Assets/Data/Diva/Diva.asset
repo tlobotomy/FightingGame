@@ -22,8 +22,8 @@ MonoBehaviour:
   MaxStun: 65
   StunRecoveryRate: 2
   StunDuration: 150
-  WalkForwardSpeed: 0.6
-  WalkBackwardSpeed: 0.038
+  WalkForwardSpeed: 0.16
+  WalkBackwardSpeed: 0.1
   JumpForwardSpeed: 0.065
   JumpHeight: 0.28
   Gravity: 0.013
